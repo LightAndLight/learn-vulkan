@@ -16,10 +16,23 @@ maintainer:          isaace71295@gmail.com
 category:            Graphics
 extra-source-files:  CHANGELOG.md
 
+flag usePlatformWaylandKhr
+    description:
+      Enable platform-specific extensions protected by CPP macros VK_USE_PLATFORM_WAYLAND_KHR
+    default: False
+
+flag usePlatformXcbKhr
+    description:
+      Enable platform-specific extensions protected by CPP macros VK_USE_PLATFORM_XCB_KHR
+    default: False
+
+flag usePlatformXlibKhr
+    description:
+      Enable platform-specific extensions protected by CPP macros VK_USE_PLATFORM_XLIB_KHR
+    default: False
+
 executable learn-vulkan
   main-is:             Main.hs
-  -- other-modules:
-  -- other-extensions:
   build-depends:       base ^>=4.12.0.0
                      , GLFW-b ^>=3.2
                      , vulkan-api ^>=1.1
