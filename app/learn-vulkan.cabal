@@ -35,6 +35,11 @@ executable learn-vulkan
   main-is:             Main.hs
   other-modules:
     Graphics.Vulkan.Layer.VK_LAYER_LUNARG_standard_validation
+    Graphics.Vulkan.Layer.VK_LAYER_LUNARG_core_validation
+    Graphics.Vulkan.Layer.VK_LAYER_LUNARG_parameter_validation
+    Graphics.Vulkan.Layer.VK_LAYER_LUNARG_object_tracker
+    Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_threading
+    Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
 
   build-depends:       base ^>=4.12.0.0
                      , GLFW-b ^>=3.2

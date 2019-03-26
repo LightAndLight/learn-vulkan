@@ -56,6 +56,16 @@ import qualified Graphics.UI.GLFW as GLFW
 
 import Graphics.Vulkan.Layer.VK_LAYER_LUNARG_standard_validation
   (pattern VK_LAYER_LUNARG_standard_validation)
+import Graphics.Vulkan.Layer.VK_LAYER_LUNARG_core_validation
+  (pattern VK_LAYER_LUNARG_core_validation)
+import Graphics.Vulkan.Layer.VK_LAYER_LUNARG_parameter_validation
+  (pattern VK_LAYER_LUNARG_parameter_validation)
+import Graphics.Vulkan.Layer.VK_LAYER_LUNARG_object_tracker
+  (pattern VK_LAYER_LUNARG_object_tracker)
+import Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_threading
+  (pattern VK_LAYER_GOOGLE_threading)
+import Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
+  (pattern VK_LAYER_GOOGLE_unique_objects)
 
 mainLoop :: GLFW.Window -> IO ()
 mainLoop window = go
@@ -108,22 +118,38 @@ newAppInfo appName engineName appVersion engineVersion apiVersion =
     Vk.writeField @"engineVersion" ptr engineVersion
     Vk.writeField @"apiVersion" ptr apiVersion
 
+
 data VkLayer
   = LunargStandardValidation
+  | LunargCoreValidation
+  | LunargParameterValidation
+  | LunargObjectTracker
+  | GoogleThreading
+  | GoogleUniqueObjects
   | UnknownLayer Foreign.CString
+  deriving (Eq, Ord, Show)
 
 vkLayer :: Foreign.CString -> VkLayer
 vkLayer str =
   case str of
     VK_LAYER_LUNARG_standard_validation -> LunargStandardValidation
+    VK_LAYER_LUNARG_core_validation -> LunargCoreValidation
+    VK_LAYER_LUNARG_parameter_validation -> LunargParameterValidation
+    VK_LAYER_LUNARG_object_tracker -> LunargObjectTracker
+    VK_LAYER_GOOGLE_threading -> GoogleThreading
+    VK_LAYER_GOOGLE_unique_objects -> GoogleUniqueObjects
     _ -> UnknownLayer str
 
 unVkLayer :: VkLayer -> Foreign.CString
 unVkLayer layer =
   case layer of
     LunargStandardValidation -> VK_LAYER_LUNARG_standard_validation
+    LunargCoreValidation -> VK_LAYER_LUNARG_core_validation
+    LunargParameterValidation -> VK_LAYER_LUNARG_parameter_validation
+    LunargObjectTracker -> VK_LAYER_LUNARG_object_tracker
+    GoogleThreading -> VK_LAYER_GOOGLE_threading
+    GoogleUniqueObjects -> VK_LAYER_GOOGLE_unique_objects
     UnknownLayer str -> str
-
 
 newInstanceCreateInfo ::
   Vk.Ptr VkApplicationInfo ->
@@ -242,7 +268,7 @@ vkEnumerateInstanceExtensionProperties mLayerName =
         Vk.withCStringField @"extensionName" property (pure . vkExtension) <*>
         Vk.readField @"specVersion" (Vk.unsafePtr property)
 
-vkEnumerateInstanceLayerProperties :: IO [(String, Word32, Word32, String)]
+vkEnumerateInstanceLayerProperties :: IO [(VkLayer, Word32, Word32, String)]
 vkEnumerateInstanceLayerProperties =
   Foreign.alloca $ \countPtr -> do
     vkResult =<< Vk.vkEnumerateInstanceLayerProperties countPtr Foreign.nullPtr
@@ -251,7 +277,8 @@ vkEnumerateInstanceLayerProperties =
       vkResult =<< Vk.vkEnumerateInstanceLayerProperties countPtr propertiesPtr
       properties <- Foreign.peekArray count propertiesPtr
       for properties $ \property ->
-        (,,,) (Vk.getStringField @"layerName" property) <$>
+        (,,,) <$>
+        Vk.withCStringField @"layerName" property (pure . vkLayer) <*>
         Vk.readField @"specVersion" (Vk.unsafePtr property) <*>
         Vk.readField @"implementationVersion" (Vk.unsafePtr property) <*>
         pure (Vk.getStringField @"description" property)
