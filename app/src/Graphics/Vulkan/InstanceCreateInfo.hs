@@ -1,6 +1,8 @@
 {-# language DataKinds, TypeApplications #-}
 module Graphics.Vulkan.InstanceCreateInfo where
 
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Managed.Safe (MonadManaged, using, managed)
 import Data.Word (Word32)
 
 import qualified Foreign.Marshal.Array as Foreign
@@ -19,23 +21,23 @@ data VkInstanceCreateInfo
   , ppEnabledExtensionNames :: [VkExtension]
   } deriving (Eq, Ord, Show)
 
-withInstanceCreateInfo ::
+mkInstanceCreateInfo ::
+  (MonadManaged m, MonadIO m) =>
   VkInstanceCreateInfo ->
-  (Foreign.Ptr Vk.VkInstanceCreateInfo -> IO ()) ->
-  IO ()
-withInstanceCreateInfo ii f =
-  Foreign.withArray (unVkLayer <$> layerNames) $ \layerNamesPtr ->
-  Foreign.withArray (unVkExtension <$> extNames) $ \extNamesPtr ->
-  withApplicationInfo (pApplicationInfo ii) $ \appInfoPtr -> do
-    info <-
-      Vk.newVkData @Vk.VkInstanceCreateInfo $ \ptr -> do
-        Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
-        Vk.writeField @"pApplicationInfo" ptr appInfoPtr
-        Vk.writeField @"enabledLayerCount" ptr (fromIntegral $ length layerNames)
-        Vk.writeField @"ppEnabledLayerNames" ptr layerNamesPtr
-        Vk.writeField @"enabledExtensionCount" ptr (fromIntegral $ length extNames)
-        Vk.writeField @"ppEnabledExtensionNames" ptr extNamesPtr
-    f (Vk.unsafePtr info)
+  m (Foreign.Ptr Vk.VkInstanceCreateInfo)
+mkInstanceCreateInfo ii = do
+  layerNamesPtr <- using $ managed (Foreign.withArray $ unVkLayer <$> layerNames)
+  extNamesPtr <- using $ managed (Foreign.withArray $ unVkExtension <$> extNames)
+  appInfoPtr <- mkApplicationInfo $ pApplicationInfo ii
+  liftIO $
+    fmap Vk.unsafePtr <$>
+    Vk.newVkData @Vk.VkInstanceCreateInfo $ \ptr -> do
+      Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+      Vk.writeField @"pApplicationInfo" ptr appInfoPtr
+      Vk.writeField @"enabledLayerCount" ptr (fromIntegral $ length layerNames)
+      Vk.writeField @"ppEnabledLayerNames" ptr layerNamesPtr
+      Vk.writeField @"enabledExtensionCount" ptr (fromIntegral $ length extNames)
+      Vk.writeField @"ppEnabledExtensionNames" ptr extNamesPtr
   where
     layerNames = ppEnabledLayerNames ii
     extNames = ppEnabledExtensionNames ii

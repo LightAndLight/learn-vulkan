@@ -36,6 +36,7 @@ executable learn-vulkan
 
   build-depends:       base ^>=4.12.0.0
                      , GLFW-b ^>=3.2
+                     , managed ^>=1.0
                      , vulkan-api ^>=1.1
   extra-libraries:     vulkan
   hs-source-dirs:      src

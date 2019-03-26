@@ -4,8 +4,10 @@
 {-# language TypeApplications #-}
 module Main where
 
-import Control.Exception (Exception(..), throwIO)
+import Control.Exception (Exception(..), bracket, throwIO)
 import Control.Monad (unless)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
 import Data.Foldable (fold, traverse_)
 import Data.Int (Int32, Int64)
 import Data.Traversable (for)
@@ -30,58 +32,58 @@ import qualified Graphics.Vulkan.Ext.VK_EXT_debug_utils as Vk
 import qualified Graphics.Vulkan.Marshal as Vk
 import qualified Graphics.UI.GLFW as GLFW
 
-import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..), withApplicationInfo)
+import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
 import Graphics.Vulkan.Ext
   (VkExtension(..), vkExtension, unVkExtension, getRequiredInstanceExtensions)
 import Graphics.Vulkan.Ext.DebugUtils
   ( VkDebugUtilsMessengerCreateInfoEXT(..)
   , VkDebugUtilsMessageSeverity(..)
   , VkDebugUtilsMessageType(..)
-  , withDebugUtilsMessenger
+  , mkDebugUtilsMessenger
   )
-import Graphics.Vulkan.Instance (withInstance)
+import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
 import Graphics.Vulkan.Result (vkResult)
 
-mainLoop :: GLFW.Window -> IO ()
+mainLoop :: MonadIO m => GLFW.Window -> m ()
 mainLoop window = go
   where
     go = do
-      close <- GLFW.windowShouldClose window
-      unless close $ GLFW.pollEvents *> go
+      close <- liftIO $ GLFW.windowShouldClose window
+      unless close $ liftIO GLFW.pollEvents *> go
 
-vulkanGLFW :: IO a -> IO a
+vulkanGLFW :: MonadIO m => m a -> m a
 vulkanGLFW m = do
-  initSucceeded <- GLFW.init
+  initSucceeded <- liftIO GLFW.init
   unless initSucceeded $ error "glfw init failed"
-  vkSupported <- GLFW.vulkanSupported
+  vkSupported <- liftIO GLFW.vulkanSupported
   unless vkSupported $ error "glfw vulkan not supported"
-  m <* GLFW.terminate
+  m <* liftIO GLFW.terminate
 
-withWindow ::
+mkWindow ::
+  (MonadManaged m, MonadIO m) =>
   [GLFW.WindowHint] ->
   Int ->
   Int ->
   String ->
   Maybe GLFW.Monitor ->
   Maybe GLFW.Window ->
-  (GLFW.Window -> IO ()) ->
-  IO ()
-withWindow hints w h name mMonitor mWindow f = do
-  traverse_ GLFW.windowHint hints
-  mWindow <- GLFW.createWindow w h name mMonitor mWindow
+  m GLFW.Window
+mkWindow hints w h name mMonitor mWindow = do
+  liftIO $ traverse_ GLFW.windowHint hints
+  mWindow <- liftIO $ GLFW.createWindow w h name mMonitor mWindow
   case mWindow of
     Nothing -> error "glfw window create failed"
-    Just window -> f window *> GLFW.destroyWindow window
+    Just window -> using $ managed (bracket (pure window) GLFW.destroyWindow)
 
 main :: IO ()
 main =
-  vulkanGLFW $
-  withWindow hints 1280 960 "vulkan" Nothing Nothing $ \window ->
-  getRequiredInstanceExtensions >>= \extsNames ->
-  withInstance (icInfo extsNames) Foreign.nullPtr $ \inst ->
-  withDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr $ \messenger ->
+  runManaged . vulkanGLFW $ do
+    window <- mkWindow hints 1280 960 "vulkan" Nothing Nothing
+    extsNames <- liftIO getRequiredInstanceExtensions
+    inst <- mkInstance (icInfo extsNames) Foreign.nullPtr
+    messenger <- mkDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr
     mainLoop window
   where
     hints =

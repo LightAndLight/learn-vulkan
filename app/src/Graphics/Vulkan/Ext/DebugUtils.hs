@@ -2,6 +2,9 @@
 {-# language ScopedTypeVariables #-}
 module Graphics.Vulkan.Ext.DebugUtils where
 
+import Control.Exception (bracket)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Managed.Safe (MonadManaged, using, managed)
 import Data.Bits ((.&.), (.|.))
 import Data.Int (Int32)
 import Data.Void (Void)
@@ -180,18 +183,21 @@ unVkDebugUtilsMessageSeverityBits ::
   Vk.VkDebugUtilsMessageSeverityFlagsEXT
 unVkDebugUtilsMessageSeverityBits = foldr (\a b -> unVkDebugUtilsMessageSeverityBit a .|. b) 0
 
-withDebugUtilsMessengerCallback ::
-  forall a.
-  Foreign.Storable a =>
+mkDebugUtilsMessengerCallback ::
+  forall a m.
+  ( Foreign.Storable a
+  , MonadManaged m, MonadIO m
+  ) =>
   (VkDebugUtilsMessageSeverity ->
    [VkDebugUtilsMessageType] ->
    VkDebugUtilsMessengerCallbackDataEXT ->
    a ->
    IO Bool) ->
-  (Vk.PFN_vkDebugUtilsMessengerCallbackEXT -> IO ()) ->
-  IO ()
-withDebugUtilsMessengerCallback cb f = do
-  cbPtr <- Vk.newVkDebugUtilsMessengerCallbackEXT $ \a b c d -> do
+  m Vk.PFN_vkDebugUtilsMessengerCallbackEXT
+mkDebugUtilsMessengerCallback cb = do
+  using $ managed (bracket (Vk.newVkDebugUtilsMessengerCallbackEXT cb') Foreign.freeHaskellFunPtr)
+  where
+    cb' a b c d = do
       c' <- vkDebugUtilsMessengerCallbackDataEXT c
       d' <- Foreign.peek (Foreign.castPtr d :: Foreign.Ptr a)
       res <-
@@ -204,8 +210,6 @@ withDebugUtilsMessengerCallback cb f = do
         if res
         then Vk.VK_TRUE
         else Vk.VK_FALSE
-  f cbPtr
-  Foreign.freeHaskellFunPtr cbPtr
 
 data VkDebugUtilsMessengerCreateInfoEXT a
   = VkDebugUtilsMessengerCreateInfoEXT
@@ -220,44 +224,41 @@ data VkDebugUtilsMessengerCreateInfoEXT a
   , pUserData :: a
   }
 
-withDebugUtilsMessengerCreateInfo ::
-  forall a.
-  Foreign.Storable a =>
+mkDebugUtilsMessengerCreateInfo ::
+  forall a m.
+  ( Foreign.Storable a
+  , MonadManaged m, MonadIO m
+  ) =>
   VkDebugUtilsMessengerCreateInfoEXT a ->
-  (Foreign.Ptr Vk.VkDebugUtilsMessengerCreateInfoEXT -> IO ()) ->
-  IO ()
-withDebugUtilsMessengerCreateInfo ci f =
-  withDebugUtilsMessengerCallback (pfnUserCallback ci) $ \cbPtr -> do
-    Foreign.alloca $ \(userDataPtr :: Foreign.Ptr a) -> do
-      Foreign.poke userDataPtr (pUserData ci)
-      createInfo <-
-        Vk.newVkData @Vk.VkDebugUtilsMessengerCreateInfoEXT $
-        \createInfoPtr -> do
-          Vk.writeField @"sType" createInfoPtr Vk.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
+  m (Foreign.Ptr Vk.VkDebugUtilsMessengerCreateInfoEXT)
+mkDebugUtilsMessengerCreateInfo ci = do
+  cbPtr <- mkDebugUtilsMessengerCallback (pfnUserCallback ci)
+  userDataPtr :: Foreign.Ptr a <- using $ managed Foreign.alloca
+  liftIO $ do
+    Foreign.poke userDataPtr (pUserData ci)
+    fmap Vk.unsafePtr <$>
+      Vk.newVkData @Vk.VkDebugUtilsMessengerCreateInfoEXT $ \createInfoPtr -> do
+        Vk.writeField @"sType" createInfoPtr Vk.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
 
-          Vk.writeField @"messageSeverity" createInfoPtr
-            (unVkDebugUtilsMessageSeverityBits $ messageSeverity ci)
-          Vk.writeField @"messageType" createInfoPtr
-            (unVkDebugUtilsMessageTypeBits $ messageType ci)
-          Vk.writeField @"pfnUserCallback" createInfoPtr cbPtr
-          Vk.writeField @"pUserData" createInfoPtr (Foreign.castPtr userDataPtr)
-      f $ Vk.unsafePtr createInfo
+        Vk.writeField @"messageSeverity" createInfoPtr
+          (unVkDebugUtilsMessageSeverityBits $ messageSeverity ci)
+        Vk.writeField @"messageType" createInfoPtr
+          (unVkDebugUtilsMessageTypeBits $ messageType ci)
+        Vk.writeField @"pfnUserCallback" createInfoPtr cbPtr
+        Vk.writeField @"pUserData" createInfoPtr (Foreign.castPtr userDataPtr)
 
-withDebugUtilsMessenger ::
-  Foreign.Storable a =>
+mkDebugUtilsMessenger ::
+  ( Foreign.Storable a
+  , MonadManaged m, MonadIO m
+  ) =>
   Vk.VkInstance ->
   VkDebugUtilsMessengerCreateInfoEXT a ->
   Foreign.Ptr Vk.VkAllocationCallbacks ->
-  (Vk.VkDebugUtilsMessengerEXT -> IO ()) ->
-  IO ()
-withDebugUtilsMessenger inst createInfo cbPtr f = do
-  createMessenger <-
-    Vk.vkGetInstanceProc @"vkCreateDebugUtilsMessengerEXT" inst
-  withDebugUtilsMessengerCreateInfo createInfo $ \createInfoPtr ->
-    Foreign.alloca $ \messengerPtr -> do
-      vkResult =<< createMessenger inst createInfoPtr cbPtr messengerPtr
-      messenger <- Foreign.peek messengerPtr
-      f messenger
-      destroyMessenger <-
-        Vk.vkGetInstanceProc @"vkDestroyDebugUtilsMessengerEXT" inst
-      destroyMessenger inst messenger cbPtr
+  m Vk.VkDebugUtilsMessengerEXT
+mkDebugUtilsMessenger inst createInfo cbPtr = do
+  createMessenger <- liftIO $ Vk.vkGetInstanceProc @"vkCreateDebugUtilsMessengerEXT" inst
+  destroyMessenger <- liftIO $ Vk.vkGetInstanceProc @"vkDestroyDebugUtilsMessengerEXT" inst
+  createInfoPtr <- mkDebugUtilsMessengerCreateInfo createInfo
+  messengerPtr <- using $ managed Foreign.alloca
+  liftIO $ vkResult =<< createMessenger inst createInfoPtr cbPtr messengerPtr
+  using $ managed (bracket (Foreign.peek messengerPtr) (\m -> destroyMessenger inst m cbPtr))
