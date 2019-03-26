@@ -153,21 +153,18 @@ unVkLayer layer =
 
 newInstanceCreateInfo ::
   Vk.Ptr VkApplicationInfo ->
-  Vk.Word32 ->
-  -- Vk.Ptr Vk.CString ->
   [VkLayer] ->
-  Vk.Word32 ->
   [VkExtension] ->
   IO VkInstanceCreateInfo
-newInstanceCreateInfo appInfo layerCount layerNames extCount extNames =
+newInstanceCreateInfo appInfo layerNames extNames =
   Foreign.withArray (unVkLayer <$> layerNames) $ \layerNamesPtr ->
   Foreign.withArray (unVkExtension <$> extNames) $ \extNamesPtr ->
   Vk.newVkData @VkInstanceCreateInfo $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
     Vk.writeField @"pApplicationInfo" ptr appInfo
-    Vk.writeField @"enabledLayerCount" ptr layerCount
+    Vk.writeField @"enabledLayerCount" ptr (fromIntegral $ length layerNames)
     Vk.writeField @"ppEnabledLayerNames" ptr layerNamesPtr
-    Vk.writeField @"enabledExtensionCount" ptr extCount
+    Vk.writeField @"enabledExtensionCount" ptr (fromIntegral $ length extNames)
     Vk.writeField @"ppEnabledExtensionNames" ptr extNamesPtr
 
 data VkError
@@ -283,12 +280,10 @@ vkEnumerateInstanceLayerProperties =
         Vk.readField @"implementationVersion" (Vk.unsafePtr property) <*>
         pure (Vk.getStringField @"description" property)
 
-getRequiredInstanceExtensions :: IO (Word32, [VkExtension])
+getRequiredInstanceExtensions :: IO [VkExtension]
 getRequiredInstanceExtensions = do
   exts <- GLFW.getRequiredInstanceExtensions
-  let extsCount = fromIntegral $ length exts
-  let extsNames = vkExtension <$> exts
-  pure (extsCount, extsNames)
+  pure $ vkExtension <$> exts
 
 main :: IO ()
 main =
@@ -301,13 +296,11 @@ main =
         (_VK_MAKE_VERSION 1 0 0)
         (_VK_MAKE_VERSION 1 0 0)
         (_VK_MAKE_VERSION 1 1 82)
-    (extsCount, extsNames) <- getRequiredInstanceExtensions
+    extsNames <- getRequiredInstanceExtensions
     instanceCreateInfo <-
       newInstanceCreateInfo
         (Vk.unsafePtr appInfo) -- can we avoid this?
-        1
         [LunargStandardValidation]
-        extsCount
         extsNames
     withInstance (Vk.unsafePtr instanceCreateInfo) Foreign.nullPtr $ \instance_ -> do
       print =<< vkEnumerateInstanceExtensionProperties Nothing
