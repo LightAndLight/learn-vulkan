@@ -17,7 +17,7 @@ import Data.Word (Word32, Word64)
 import Graphics.UI.GLFW (ClientAPI(..), WindowHint(..))
 import Graphics.Vulkan (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Core_1_0
-  ( VkInstance, VkAllocationCallbacks
+  ( VkAllocationCallbacks
   , VkInstanceCreateInfo
   , VkBool32
   )

@@ -1,4 +1,8 @@
-module Graphics.Vulkan.Instance where
+module Graphics.Vulkan.Instance
+  ( Vk.VkInstance
+  , mkInstance
+  )
+where
 
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
