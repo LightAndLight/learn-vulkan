@@ -1,5 +1,4 @@
-{-# language DeriveDataTypeable #-}
-{-# language DataKinds #-}
+-# language DataKinds #-}
 {-# language MagicHash #-}
 {-# language PatternSynonyms, ViewPatterns #-}
 {-# language TypeApplications #-}
@@ -8,14 +7,16 @@ module Main where
 import Control.Exception (Exception(..), throwIO)
 import Control.Monad (unless)
 import Data.Foldable (fold, traverse_)
+import Data.Int (Int32, Int64)
 import Data.Traversable (for)
-import Data.Typeable (Typeable)
-import Data.Word (Word32)
+import Data.Void (Void)
+import Data.Word (Word32, Word64)
 import Graphics.UI.GLFW (ClientAPI(..), WindowHint(..))
 import Graphics.Vulkan (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Core_1_0
   ( VkApplicationInfo, VkInstanceCreateInfo, VkInstance, VkAllocationCallbacks
   , VkInstanceCreateInfo
+  , VkBool32
   )
 
 import Graphics.Vulkan.Ext.VK_KHR_device_group_creation
@@ -50,7 +51,9 @@ import qualified Foreign.Marshal.Alloc as Foreign
 import qualified Foreign.Marshal.Array as Foreign
 import qualified Foreign.Ptr as Foreign
 import qualified Foreign.Storable as Foreign
+import qualified Graphics.Vulkan.Constants as Vk
 import qualified Graphics.Vulkan.Core_1_0 as Vk
+import qualified Graphics.Vulkan.Ext.VK_EXT_debug_utils as Vk
 import qualified Graphics.Vulkan.Marshal as Vk
 import qualified Graphics.UI.GLFW as GLFW
 
@@ -66,6 +69,14 @@ import Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_threading
   (pattern VK_LAYER_GOOGLE_threading)
 import Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
   (pattern VK_LAYER_GOOGLE_unique_objects)
+
+import Graphics.Vulkan.Ext.DebugUtils
+  ( VkDebugUtilsMessengerCreateInfoEXT(..)
+  , VkDebugUtilsMessageSeverity(..)
+  , VkDebugUtilsMessageType(..)
+  , withDebugUtilsMessenger
+  )
+import Graphics.Vulkan.Result (vkResult)
 
 mainLoop :: GLFW.Window -> IO ()
 mainLoop window = go
@@ -118,7 +129,6 @@ newAppInfo appName engineName appVersion engineVersion apiVersion =
     Vk.writeField @"engineVersion" ptr engineVersion
     Vk.writeField @"apiVersion" ptr apiVersion
 
-
 data VkLayer
   = LunargStandardValidation
   | LunargCoreValidation
@@ -166,28 +176,6 @@ newInstanceCreateInfo appInfo layerNames extNames =
     Vk.writeField @"ppEnabledLayerNames" ptr layerNamesPtr
     Vk.writeField @"enabledExtensionCount" ptr (fromIntegral $ length extNames)
     Vk.writeField @"ppEnabledExtensionNames" ptr extNamesPtr
-
-data VkError
-  = OutOfHostMemory
-  | OutOfDeviceMemory
-  | InitializationFailed
-  | LayerNotPresent
-  | ExtensionNotPresent
-  | IncompatibleDriver
-  deriving (Eq, Ord, Show, Typeable)
-
-instance Exception VkError
-
-vkResult :: Vk.VkResult -> IO ()
-vkResult res =
-  case res of
-    Vk.VK_SUCCESS -> pure ()
-    Vk.VK_ERROR_OUT_OF_HOST_MEMORY -> throwIO OutOfHostMemory
-    Vk.VK_ERROR_OUT_OF_DEVICE_MEMORY -> throwIO OutOfDeviceMemory
-    Vk.VK_ERROR_INITIALIZATION_FAILED -> throwIO InitializationFailed
-    Vk.VK_ERROR_LAYER_NOT_PRESENT -> throwIO LayerNotPresent
-    Vk.VK_ERROR_EXTENSION_NOT_PRESENT -> throwIO ExtensionNotPresent
-    Vk.VK_ERROR_INCOMPATIBLE_DRIVER -> throwIO IncompatibleDriver
 
 withInstance ::
   Vk.Ptr VkInstanceCreateInfo ->
@@ -301,13 +289,26 @@ main =
       newInstanceCreateInfo
         (Vk.unsafePtr appInfo) -- can we avoid this?
         [LunargStandardValidation]
-        extsNames
-    withInstance (Vk.unsafePtr instanceCreateInfo) Foreign.nullPtr $ \instance_ -> do
-      print =<< vkEnumerateInstanceExtensionProperties Nothing
-      print =<< vkEnumerateInstanceLayerProperties
+        (DebugUtils : extsNames)
+    withInstance (Vk.unsafePtr instanceCreateInfo) Foreign.nullPtr $ \inst ->
+      withDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr $ \messenger ->
       mainLoop window
   where
     hints =
       [ WindowHint'ClientAPI ClientAPI'NoAPI
       , WindowHint'Resizable False
       ]
+
+    messengerCreateInfo =
+      VkDebugUtilsMessengerCreateInfoEXT
+      { messageSeverity = [Verbose, Info, Warning, Error]
+      , messageType = [General, Validation, Performance]
+      , pfnUserCallback = \sev types cbData userData -> do
+          putStrLn "debug callback:"
+          print sev
+          print types
+          print cbData
+          print userData
+          pure False
+      , pUserData = ()
+      }
