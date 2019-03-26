@@ -49,34 +49,39 @@ data VkDebugUtilsMessengerCallbackDataEXT
   , pObjects :: [VkDebugUtilsObjectNameInfoEXT]
   } deriving (Eq, Show, Ord)
 
-vkDebugUtilsLabelEXT :: Vk.VkDebugUtilsLabelEXT -> IO VkDebugUtilsLabelEXT
+vkDebugUtilsLabelEXT :: MonadIO m => Vk.VkDebugUtilsLabelEXT -> m VkDebugUtilsLabelEXT
 vkDebugUtilsLabelEXT d =
-  VkDebugUtilsLabelEXT <$>
-  (Foreign.peekCString =<< Vk.readField @"pLabelName" dPtr) <*>
-  ((,,,) <$>
-   Vk.readFieldArray @"color" @0 dPtr <*>
-   Vk.readFieldArray @"color" @1 dPtr <*>
-   Vk.readFieldArray @"color" @2 dPtr <*>
-   Vk.readFieldArray @"color" @3 dPtr)
-  where
-    dPtr = (Vk.unsafePtr d)
+  liftIO $
+  (\lname ->
+     VkDebugUtilsLabelEXT
+     { pLabelName = lname
+     , color =
+       ( Vk.getFieldArray @"color" @0 d
+       , Vk.getFieldArray @"color" @1 d
+       , Vk.getFieldArray @"color" @2 d
+       , Vk.getFieldArray @"color" @3 d
+       )
+     }) <$>
+  Foreign.peekCString (Vk.getField @"pLabelName" d)
 
 vkDebugUtilsObjectNameInfoEXT ::
+  MonadIO m =>
   Vk.VkDebugUtilsObjectNameInfoEXT ->
-  IO VkDebugUtilsObjectNameInfoEXT
+  m VkDebugUtilsObjectNameInfoEXT
 vkDebugUtilsObjectNameInfoEXT d =
-  VkDebugUtilsObjectNameInfoEXT <$>
-  (vkObjectType <$> Vk.readField @"objectType" dPtr) <*>
-  (Vk.readField @"objectHandle" dPtr) <*>
-  (Foreign.peekCString =<< Vk.readField @"pObjectName" dPtr)
-  where
-    dPtr = Vk.unsafePtr d
+  liftIO $
+  (\oname ->
+     VkDebugUtilsObjectNameInfoEXT
+     { objectType = vkObjectType $ Vk.getField @"objectType" d
+     , objectHandle = Vk.getField @"objectHandle" d
+     , pObjectName = oname
+     }) <$>
+  Foreign.peekCString (Vk.getField @"pObjectName" d)
 
 vkDebugUtilsMessengerCallbackDataEXT ::
   Foreign.Ptr Vk.VkDebugUtilsMessengerCallbackDataEXT ->
   IO VkDebugUtilsMessengerCallbackDataEXT
 vkDebugUtilsMessengerCallbackDataEXT dataPtr = do
-  data_ <- Foreign.peek dataPtr
   queueLabelCount <- Vk.readField @"queueLabelCount" dataPtr
   cmdBufLabelCount <- Vk.readField @"cmdBufLabelCount" dataPtr
   objectCount <- Vk.readField @"objectCount" dataPtr

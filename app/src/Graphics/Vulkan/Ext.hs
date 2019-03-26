@@ -105,9 +105,12 @@ data VkExtensionProperties
 vkExtensionProperties :: MonadIO m => Vk.VkExtensionProperties -> m VkExtensionProperties
 vkExtensionProperties a =
   liftIO $
-  VkExtensionProperties <$>
-  Vk.withCStringField @"extensionName" a (pure . vkExtension) <*>
-  Vk.readField @"specVersion" (Vk.unsafePtr a)
+  (\ename ->
+     VkExtensionProperties
+     { extensionName = ename
+     , specVersion = Vk.getField @"specVersion" a
+     }) <$>
+  Vk.withCStringField @"extensionName" a (pure . vkExtension)
 
 vkEnumerateInstanceExtensionProperties :: MonadIO m => Maybe String -> m [VkExtensionProperties]
 vkEnumerateInstanceExtensionProperties mLayerName =

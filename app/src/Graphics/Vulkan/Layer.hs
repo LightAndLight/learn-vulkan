@@ -69,13 +69,14 @@ data VkLayerProperties
 vkLayerProperties :: MonadIO m => Vk.VkLayerProperties -> m VkLayerProperties
 vkLayerProperties a =
   liftIO $
-  VkLayerProperties <$>
-  Vk.withCStringField @"layerName" a (pure . vkLayer) <*>
-  Vk.readField @"specVersion" aPtr <*>
-  Vk.readField @"implementationVersion" aPtr <*>
-  pure (Vk.getStringField @"description" a)
-  where
-    aPtr = Vk.unsafePtr a
+  (\lname ->
+     VkLayerProperties
+     { layerName = lname
+     , specVersion = Vk.getField @"specVersion" a
+     , implementationVersion = Vk.getField @"implementationVersion" a
+     , description = Vk.getStringField @"description" a
+     }) <$>
+  Vk.withCStringField @"layerName" a (pure . vkLayer)
 
 vkEnumerateInstanceLayerProperties :: MonadIO m => m [VkLayerProperties]
 vkEnumerateInstanceLayerProperties =
