@@ -1,6 +1,7 @@
 {-# language DeriveDataTypeable #-}
 {-# language DataKinds #-}
-{-# language PatternSynonyms #-}
+{-# language MagicHash #-}
+{-# language PatternSynonyms, ViewPatterns #-}
 {-# language TypeApplications #-}
 module Main where
 
@@ -53,6 +54,9 @@ import qualified Graphics.Vulkan.Core_1_0 as Vk
 import qualified Graphics.Vulkan.Marshal as Vk
 import qualified Graphics.UI.GLFW as GLFW
 
+import Graphics.Vulkan.Layer.VK_LAYER_LUNARG_standard_validation
+  (pattern VK_LAYER_LUNARG_standard_validation)
+
 mainLoop :: GLFW.Window -> IO ()
 mainLoop window = go
   where
@@ -104,20 +108,39 @@ newAppInfo appName engineName appVersion engineVersion apiVersion =
     Vk.writeField @"engineVersion" ptr engineVersion
     Vk.writeField @"apiVersion" ptr apiVersion
 
+data VkLayer
+  = LunargStandardValidation
+  | UnknownLayer Foreign.CString
+
+vkLayer :: Foreign.CString -> VkLayer
+vkLayer str =
+  case str of
+    VK_LAYER_LUNARG_standard_validation -> LunargStandardValidation
+    _ -> UnknownLayer str
+
+unVkLayer :: VkLayer -> Foreign.CString
+unVkLayer layer =
+  case layer of
+    LunargStandardValidation -> VK_LAYER_LUNARG_standard_validation
+    UnknownLayer str -> str
+
+
 newInstanceCreateInfo ::
   Vk.Ptr VkApplicationInfo ->
   Vk.Word32 ->
-  Vk.Ptr Vk.CString ->
+  -- Vk.Ptr Vk.CString ->
+  [VkLayer] ->
   Vk.Word32 ->
   [VkExtension] ->
   IO VkInstanceCreateInfo
 newInstanceCreateInfo appInfo layerCount layerNames extCount extNames =
+  Foreign.withArray (unVkLayer <$> layerNames) $ \layerNamesPtr ->
   Foreign.withArray (unVkExtension <$> extNames) $ \extNamesPtr ->
   Vk.newVkData @VkInstanceCreateInfo $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
     Vk.writeField @"pApplicationInfo" ptr appInfo
     Vk.writeField @"enabledLayerCount" ptr layerCount
-    Vk.writeField @"ppEnabledLayerNames" ptr layerNames
+    Vk.writeField @"ppEnabledLayerNames" ptr layerNamesPtr
     Vk.writeField @"enabledExtensionCount" ptr extCount
     Vk.writeField @"ppEnabledExtensionNames" ptr extNamesPtr
 
@@ -219,6 +242,20 @@ vkEnumerateInstanceExtensionProperties mLayerName =
         Vk.withCStringField @"extensionName" property (pure . vkExtension) <*>
         Vk.readField @"specVersion" (Vk.unsafePtr property)
 
+vkEnumerateInstanceLayerProperties :: IO [(String, Word32, Word32, String)]
+vkEnumerateInstanceLayerProperties =
+  Foreign.alloca $ \countPtr -> do
+    vkResult =<< Vk.vkEnumerateInstanceLayerProperties countPtr Foreign.nullPtr
+    count <- fromIntegral <$> Foreign.peek countPtr
+    Foreign.allocaArray count $ \propertiesPtr -> do
+      vkResult =<< Vk.vkEnumerateInstanceLayerProperties countPtr propertiesPtr
+      properties <- Foreign.peekArray count propertiesPtr
+      for properties $ \property ->
+        (,,,) (Vk.getStringField @"layerName" property) <$>
+        Vk.readField @"specVersion" (Vk.unsafePtr property) <*>
+        Vk.readField @"implementationVersion" (Vk.unsafePtr property) <*>
+        pure (Vk.getStringField @"description" property)
+
 getRequiredInstanceExtensions :: IO (Word32, [VkExtension])
 getRequiredInstanceExtensions = do
   exts <- GLFW.getRequiredInstanceExtensions
@@ -241,12 +278,13 @@ main =
     instanceCreateInfo <-
       newInstanceCreateInfo
         (Vk.unsafePtr appInfo) -- can we avoid this?
-        0
-        Foreign.nullPtr
+        1
+        [LunargStandardValidation]
         extsCount
         extsNames
     withInstance (Vk.unsafePtr instanceCreateInfo) Foreign.nullPtr $ \instance_ -> do
       print =<< vkEnumerateInstanceExtensionProperties Nothing
+      print =<< vkEnumerateInstanceLayerProperties
       mainLoop window
   where
     hints =
