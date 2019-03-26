@@ -2,6 +2,7 @@
 module Graphics.Vulkan.PhysicalDevice
   ( vkEnumeratePhysicalDevices
   , vkGetPhysicalDeviceProperties
+  , vkGetPhysicalDeviceFeatures
   , Vk.VkPhysicalDevice
   , VkPhysicalDeviceType(..)
   , vkPhysicalDeviceType, unVkPhysicalDeviceType
@@ -9,6 +10,7 @@ module Graphics.Vulkan.PhysicalDevice
   , VkPhysicalDeviceLimits(..)
   , VkPhysicalDeviceSparseProperties(..)
   , Vk.VkDeviceSize(..)
+  , VkPhysicalDeviceFeatures(..)
   )
 where
 
@@ -383,3 +385,142 @@ vkGetPhysicalDeviceProperties d =
   Foreign.alloca $ \propsPtr -> do
     Vk.vkGetPhysicalDeviceProperties d propsPtr
     vkPhysicalDeviceProperties =<< Foreign.peek propsPtr
+
+data VkPhysicalDeviceFeatures
+  = VkPhysicalDeviceFeatures
+  { robustBufferAccess :: Bool
+  , fullDrawIndexUint32 :: Bool
+  , imageCubeArray :: Bool
+  , independentBlend :: Bool
+  , geometryShader :: Bool
+  , tessellationShader :: Bool
+  , sampleRateShading :: Bool
+  , dualSrcBlend :: Bool
+  , logicOp :: Bool
+  , multiDrawIndirect :: Bool
+  , drawIndirectFirstInstance :: Bool
+  , depthClamp :: Bool
+  , depthBiasClamp :: Bool
+  , fillModeNonSolid :: Bool
+  , depthBounds :: Bool
+  , wideLines :: Bool
+  , largePoints :: Bool
+  , alphaToOne :: Bool
+  , multiViewport :: Bool
+  , samplerAnisotropy :: Bool
+  , textureCompressionETC2 :: Bool
+  , textureCompressionASTC_LDR :: Bool
+  , textureCompressionBC :: Bool
+  , occlusionQueryPrecise :: Bool
+  , pipelineStatisticsQuery :: Bool
+  , vertexPipelineStoresAndAtomics :: Bool
+  , fragmentStoresAndAtomics :: Bool
+  , shaderTessellationAndGeometryPointSize :: Bool
+  , shaderImageGatherExtended :: Bool
+  , shaderStorageImageExtendedFormats :: Bool
+  , shaderStorageImageMultisample :: Bool
+  , shaderStorageImageReadWithoutFormat :: Bool
+  , shaderStorageImageWriteWithoutFormat :: Bool
+  , shaderUniformBufferArrayDynamicIndexing :: Bool
+  , shaderSampledImageArrayDynamicIndexing :: Bool
+  , shaderStorageBufferArrayDynamicIndexing :: Bool
+  , shaderStorageImageArrayDynamicIndexing :: Bool
+  , shaderClipDistance :: Bool
+  , shaderCullDistance :: Bool
+  , shaderFloat64 :: Bool
+  , shaderInt64 :: Bool
+  , shaderInt16 :: Bool
+  , shaderResourceResidency :: Bool
+  , shaderResourceMinLod :: Bool
+  , sparseBinding :: Bool
+  , sparseResidencyBuffer :: Bool
+  , sparseResidencyImage2D :: Bool
+  , sparseResidencyImage3D :: Bool
+  , sparseResidency2Samples :: Bool
+  , sparseResidency4Samples :: Bool
+  , sparseResidency8Samples :: Bool
+  , sparseResidency16Samples :: Bool
+  , sparseResidencyAliased :: Bool
+  , variableMultisampleRate :: Bool
+  , inheritedQueries :: Bool
+  } deriving (Eq, Ord, Show)
+
+vkPhysicalDeviceFeatures ::
+  Vk.VkPhysicalDeviceFeatures ->
+  VkPhysicalDeviceFeatures
+vkPhysicalDeviceFeatures p =
+  VkPhysicalDeviceFeatures
+  { robustBufferAccess = Vk.getField @"robustBufferAccess" p == Vk.VK_TRUE
+  , fullDrawIndexUint32 = Vk.getField @"fullDrawIndexUint32" p == Vk.VK_TRUE
+  , imageCubeArray = Vk.getField @"imageCubeArray" p == Vk.VK_TRUE
+  , independentBlend = Vk.getField @"independentBlend" p == Vk.VK_TRUE
+  , geometryShader = Vk.getField @"geometryShader" p == Vk.VK_TRUE
+  , tessellationShader = Vk.getField @"tessellationShader" p == Vk.VK_TRUE
+  , sampleRateShading = Vk.getField @"sampleRateShading" p == Vk.VK_TRUE
+  , dualSrcBlend = Vk.getField @"dualSrcBlend" p == Vk.VK_TRUE
+  , logicOp = Vk.getField @"logicOp" p == Vk.VK_TRUE
+  , multiDrawIndirect = Vk.getField @"multiDrawIndirect" p == Vk.VK_TRUE
+  , drawIndirectFirstInstance = Vk.getField @"drawIndirectFirstInstance" p == Vk.VK_TRUE
+  , depthClamp = Vk.getField @"depthClamp" p == Vk.VK_TRUE
+  , depthBiasClamp = Vk.getField @"depthBiasClamp" p == Vk.VK_TRUE
+  , fillModeNonSolid = Vk.getField @"fillModeNonSolid" p == Vk.VK_TRUE
+  , depthBounds = Vk.getField @"depthBounds" p == Vk.VK_TRUE
+  , wideLines = Vk.getField @"wideLines" p == Vk.VK_TRUE
+  , largePoints = Vk.getField @"largePoints" p == Vk.VK_TRUE
+  , alphaToOne = Vk.getField @"alphaToOne" p == Vk.VK_TRUE
+  , multiViewport = Vk.getField @"multiViewport" p == Vk.VK_TRUE
+  , samplerAnisotropy = Vk.getField @"samplerAnisotropy" p == Vk.VK_TRUE
+  , textureCompressionETC2 = Vk.getField @"textureCompressionETC2" p == Vk.VK_TRUE
+  , textureCompressionASTC_LDR = Vk.getField @"textureCompressionASTC_LDR" p == Vk.VK_TRUE
+  , textureCompressionBC = Vk.getField @"textureCompressionBC" p == Vk.VK_TRUE
+  , occlusionQueryPrecise = Vk.getField @"occlusionQueryPrecise" p == Vk.VK_TRUE
+  , pipelineStatisticsQuery = Vk.getField @"pipelineStatisticsQuery" p == Vk.VK_TRUE
+  , vertexPipelineStoresAndAtomics = Vk.getField @"vertexPipelineStoresAndAtomics" p == Vk.VK_TRUE
+  , fragmentStoresAndAtomics = Vk.getField @"fragmentStoresAndAtomics" p == Vk.VK_TRUE
+  , shaderTessellationAndGeometryPointSize =
+      Vk.getField @"shaderTessellationAndGeometryPointSize" p == Vk.VK_TRUE
+  , shaderImageGatherExtended = Vk.getField @"shaderImageGatherExtended" p == Vk.VK_TRUE
+  , shaderStorageImageExtendedFormats =
+      Vk.getField @"shaderStorageImageExtendedFormats" p == Vk.VK_TRUE
+  , shaderStorageImageMultisample = Vk.getField @"shaderStorageImageMultisample" p == Vk.VK_TRUE
+  , shaderStorageImageReadWithoutFormat =
+      Vk.getField @"shaderStorageImageReadWithoutFormat" p == Vk.VK_TRUE
+  , shaderStorageImageWriteWithoutFormat =
+      Vk.getField @"shaderStorageImageWriteWithoutFormat" p == Vk.VK_TRUE
+  , shaderUniformBufferArrayDynamicIndexing =
+      Vk.getField @"shaderUniformBufferArrayDynamicIndexing" p == Vk.VK_TRUE
+  , shaderSampledImageArrayDynamicIndexing =
+      Vk.getField @"shaderSampledImageArrayDynamicIndexing" p == Vk.VK_TRUE
+  , shaderStorageBufferArrayDynamicIndexing =
+      Vk.getField @"shaderStorageBufferArrayDynamicIndexing" p == Vk.VK_TRUE
+  , shaderStorageImageArrayDynamicIndexing =
+      Vk.getField @"shaderStorageImageArrayDynamicIndexing" p == Vk.VK_TRUE
+  , shaderClipDistance = Vk.getField @"shaderClipDistance" p == Vk.VK_TRUE
+  , shaderCullDistance = Vk.getField @"shaderCullDistance" p == Vk.VK_TRUE
+  , shaderFloat64 = Vk.getField @"shaderFloat64" p == Vk.VK_TRUE
+  , shaderInt64 = Vk.getField @"shaderInt64" p == Vk.VK_TRUE
+  , shaderInt16 = Vk.getField @"shaderInt16" p == Vk.VK_TRUE
+  , shaderResourceResidency = Vk.getField @"shaderResourceResidency" p == Vk.VK_TRUE
+  , shaderResourceMinLod = Vk.getField @"shaderResourceMinLod" p == Vk.VK_TRUE
+  , sparseBinding = Vk.getField @"sparseBinding" p == Vk.VK_TRUE
+  , sparseResidencyBuffer = Vk.getField @"sparseResidencyBuffer" p == Vk.VK_TRUE
+  , sparseResidencyImage2D = Vk.getField @"sparseResidencyImage2D" p == Vk.VK_TRUE
+  , sparseResidencyImage3D = Vk.getField @"sparseResidencyImage3D" p == Vk.VK_TRUE
+  , sparseResidency2Samples = Vk.getField @"sparseResidency2Samples" p == Vk.VK_TRUE
+  , sparseResidency4Samples = Vk.getField @"sparseResidency4Samples" p == Vk.VK_TRUE
+  , sparseResidency8Samples = Vk.getField @"sparseResidency8Samples" p == Vk.VK_TRUE
+  , sparseResidency16Samples = Vk.getField @"sparseResidency16Samples" p == Vk.VK_TRUE
+  , sparseResidencyAliased = Vk.getField @"sparseResidencyAliased" p == Vk.VK_TRUE
+  , variableMultisampleRate = Vk.getField @"variableMultisampleRate" p == Vk.VK_TRUE
+  , inheritedQueries = Vk.getField @"inheritedQueries" p == Vk.VK_TRUE
+  }
+
+vkGetPhysicalDeviceFeatures ::
+  MonadIO m =>
+  Vk.VkPhysicalDevice ->
+  m VkPhysicalDeviceFeatures
+vkGetPhysicalDeviceFeatures d =
+  liftIO $
+  Foreign.alloca $ \fPtr -> do
+    Vk.vkGetPhysicalDeviceFeatures d fPtr
+    vkPhysicalDeviceFeatures <$> Foreign.peek fPtr

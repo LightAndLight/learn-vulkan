@@ -45,7 +45,11 @@ import Graphics.Vulkan.Ext.DebugUtils
 import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
-import Graphics.Vulkan.PhysicalDevice (vkEnumeratePhysicalDevices, vkGetPhysicalDeviceProperties)
+import Graphics.Vulkan.PhysicalDevice
+  ( vkEnumeratePhysicalDevices
+  , vkGetPhysicalDeviceProperties
+  , vkGetPhysicalDeviceFeatures
+  )
 import Graphics.Vulkan.Result (vkResult)
 
 mainLoop :: MonadIO m => GLFW.Window -> m ()
@@ -90,6 +94,7 @@ main =
     messenger <- mkDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr
     devices <- vkEnumeratePhysicalDevices inst
     liftIO . print =<< traverse vkGetPhysicalDeviceProperties devices
+    liftIO . print =<< traverse vkGetPhysicalDeviceFeatures devices
     mainLoop window
   where
     hints =
