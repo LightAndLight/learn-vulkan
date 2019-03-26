@@ -1,22 +1,29 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "default", doBenchmark ? false }:
-
+{ nixpkgs ? import <nixpkgs> {}, compiler ? "default" }:
 let
 
   inherit (nixpkgs) pkgs;
-
-  f = import ./learn-vulkan.nix;
-
-  haskellPackages =
-    (if compiler == "default"
-     then pkgs.haskell.packages.ghc863
-     else pkgs.haskell.packages.${compiler}).override {
-      overrides = self: super: {
-        vulkan-api =
-          pkgs.haskell.lib.dontHaddock super.vulkan-api;
-      };
-    };
+  app = import ./app { inherit nixpkgs compiler; };
 
 in
 
-  haskellPackages.callPackage f {}
-
+  (pkgs.stdenv.mkDerivation {
+    name = "learn-vulkan";
+    src = ./.;
+    buildInputs =
+      [
+        app
+        pkgs.vulkan-validation-layers
+        pkgs.vulkan-tools
+      ];
+    installPhase =
+''
+mkdir -p $out/bin
+cat <<EOF >$out/bin/run
+#!/usr/bin/env sh
+export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${pkgs.vulkan-validation-layers}/lib
+export XDG_DATA_DIRS=\$XDG_DATA_DIRS:${pkgs.vulkan-validation-layers}/share
+${app}/bin/learn-vulkan
+EOF
+chmod +x $out/bin/run
+'';
+  })

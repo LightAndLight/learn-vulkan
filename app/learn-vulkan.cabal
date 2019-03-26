@@ -33,6 +33,9 @@ flag usePlatformXlibKhr
 
 executable learn-vulkan
   main-is:             Main.hs
+  other-modules:
+    Graphics.Vulkan.Layer.VK_LAYER_LUNARG_standard_validation
+
   build-depends:       base ^>=4.12.0.0
                      , GLFW-b ^>=3.2
                      , vulkan-api ^>=1.1
