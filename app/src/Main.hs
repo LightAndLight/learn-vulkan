@@ -10,6 +10,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
 import Data.Foldable (fold, traverse_)
 import Data.Int (Int32, Int64)
+import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
 import Data.Void (Void)
 import Data.Word (Word32, Word64)
@@ -53,13 +54,13 @@ mainLoop window = go
       close <- liftIO $ GLFW.windowShouldClose window
       unless close $ liftIO GLFW.pollEvents *> go
 
-vulkanGLFW :: MonadIO m => m a -> m a
+vulkanGLFW :: IO a -> IO a
 vulkanGLFW m = do
-  initSucceeded <- liftIO GLFW.init
+  initSucceeded <- GLFW.init
   unless initSucceeded $ error "glfw init failed"
-  vkSupported <- liftIO GLFW.vulkanSupported
+  vkSupported <- GLFW.vulkanSupported
   unless vkSupported $ error "glfw vulkan not supported"
-  m <* liftIO GLFW.terminate
+  m <* GLFW.terminate
 
 mkWindow ::
   (MonadManaged m, MonadIO m) =>
@@ -72,16 +73,18 @@ mkWindow ::
   m GLFW.Window
 mkWindow hints w h name mMonitor mWindow = do
   liftIO $ traverse_ GLFW.windowHint hints
-  mWindow <- liftIO $ GLFW.createWindow w h name mMonitor mWindow
-  case mWindow of
-    Nothing -> error "glfw window create failed"
-    Just window -> using $ managed (bracket (pure window) GLFW.destroyWindow)
+  using $ managed (bracket (liftIO create) GLFW.destroyWindow)
+  where
+    create :: IO GLFW.Window
+    create =
+      fromMaybe (error "glfw window create failed") <$>
+      GLFW.createWindow w h name mMonitor mWindow
 
 main :: IO ()
 main =
-  runManaged . vulkanGLFW $ do
+  vulkanGLFW . runManaged $ do
     window <- mkWindow hints 1280 960 "vulkan" Nothing Nothing
-    extsNames <- liftIO getRequiredInstanceExtensions
+    extsNames <- getRequiredInstanceExtensions
     inst <- mkInstance (icInfo extsNames) Foreign.nullPtr
     messenger <- mkDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr
     mainLoop window

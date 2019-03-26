@@ -2,6 +2,7 @@
 {-# language PatternSynonyms #-}
 module Graphics.Vulkan.Layer where
 
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Word (Word32)
 import Graphics.Vulkan.Layer.VK_LAYER_LUNARG_standard_validation
   (pattern VK_LAYER_LUNARG_standard_validation)
@@ -65,8 +66,9 @@ data VkLayerProperties
   , description :: String
   } deriving (Eq, Ord, Show)
 
-vkLayerProperties :: Vk.VkLayerProperties -> IO VkLayerProperties
+vkLayerProperties :: MonadIO m => Vk.VkLayerProperties -> m VkLayerProperties
 vkLayerProperties a =
+  liftIO $
   VkLayerProperties <$>
   Vk.withCStringField @"layerName" a (pure . vkLayer) <*>
   Vk.readField @"specVersion" aPtr <*>
@@ -75,8 +77,9 @@ vkLayerProperties a =
   where
     aPtr = Vk.unsafePtr a
 
-vkEnumerateInstanceLayerProperties :: IO [VkLayerProperties]
+vkEnumerateInstanceLayerProperties :: MonadIO m => m [VkLayerProperties]
 vkEnumerateInstanceLayerProperties =
+  liftIO $
   Foreign.alloca $ \countPtr -> do
     vkResult =<< Vk.vkEnumerateInstanceLayerProperties countPtr Foreign.nullPtr
     count <- fromIntegral <$> Foreign.peek countPtr

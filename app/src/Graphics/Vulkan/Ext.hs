@@ -2,6 +2,7 @@
 {-# language PatternSynonyms #-}
 module Graphics.Vulkan.Ext where
 
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (fold)
 import Data.Word (Word32)
 import Graphics.Vulkan.Ext.VK_KHR_device_group_creation
@@ -92,8 +93,8 @@ unVkExtension ext =
     DebugUtils -> VK_EXT_DEBUG_UTILS_EXTENSION_NAME
     UnknownExtension str -> str
 
-getRequiredInstanceExtensions :: IO [VkExtension]
-getRequiredInstanceExtensions = fmap vkExtension <$> GLFW.getRequiredInstanceExtensions
+getRequiredInstanceExtensions :: MonadIO m => m [VkExtension]
+getRequiredInstanceExtensions = liftIO $ fmap vkExtension <$> GLFW.getRequiredInstanceExtensions
 
 data VkExtensionProperties
   = VkExtensionProperties
@@ -101,14 +102,16 @@ data VkExtensionProperties
   , specVersion :: Word32
   } deriving (Eq, Ord, Show)
 
-vkExtensionProperties :: Vk.VkExtensionProperties -> IO VkExtensionProperties
+vkExtensionProperties :: MonadIO m => Vk.VkExtensionProperties -> m VkExtensionProperties
 vkExtensionProperties a =
+  liftIO $
   VkExtensionProperties <$>
   Vk.withCStringField @"extensionName" a (pure . vkExtension) <*>
   Vk.readField @"specVersion" (Vk.unsafePtr a)
 
-vkEnumerateInstanceExtensionProperties :: Maybe String -> IO [VkExtensionProperties]
+vkEnumerateInstanceExtensionProperties :: MonadIO m => Maybe String -> m [VkExtensionProperties]
 vkEnumerateInstanceExtensionProperties mLayerName =
+  liftIO $
   Foreign.withCString (fold mLayerName) $ \layerName ->
   Foreign.alloca $ \countPtr -> do
     vkResult =<< Vk.vkEnumerateInstanceExtensionProperties layerName countPtr Foreign.nullPtr
