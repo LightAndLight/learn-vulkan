@@ -20,6 +20,9 @@ executable learn-vulkan
   main-is:             Main.hs
   other-modules:
     Graphics.Vulkan.ApplicationInfo
+    Graphics.Vulkan.Device
+    Graphics.Vulkan.DeviceCreateInfo
+    Graphics.Vulkan.DeviceQueueCreateInfo
     Graphics.Vulkan.Ext
     Graphics.Vulkan.Ext.DebugUtils
     Graphics.Vulkan.Instance
@@ -36,6 +39,7 @@ executable learn-vulkan
     Graphics.Vulkan.Queue
     Graphics.Vulkan.Result
     Graphics.Vulkan.SampleCount
+    Graphics.Vulkan.Utils
 
   build-depends:       base ^>=4.12.0.0
                      , GLFW-b ^>=3.2

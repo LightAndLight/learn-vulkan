@@ -1,4 +1,6 @@
 {-# language DataKinds #-}
+{-# language DuplicateRecordFields #-}
+{-# language LambdaCase #-}
 {-# language MagicHash #-}
 {-# language PatternSynonyms, ViewPatterns #-}
 {-# language TypeApplications #-}
@@ -10,6 +12,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
 import Data.Foldable (fold, traverse_)
 import Data.Int (Int32, Int64)
+import Data.List (findIndex)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
 import Data.Void (Void)
@@ -34,6 +37,10 @@ import qualified Graphics.Vulkan.Marshal as Vk
 import qualified Graphics.UI.GLFW as GLFW
 
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
+import Graphics.Vulkan.Device (vkCreateDevice)
+import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
+import Graphics.Vulkan.DeviceQueueCreateInfo
+  (VkDeviceQueueCreateInfo(..))
 import Graphics.Vulkan.Ext
   (VkExtension(..), vkExtension, unVkExtension, getRequiredInstanceExtensions)
 import Graphics.Vulkan.Ext.DebugUtils
@@ -51,6 +58,7 @@ import Graphics.Vulkan.PhysicalDevice
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
   )
+import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Result (vkResult)
 
 mainLoop :: MonadIO m => GLFW.Window -> m ()
@@ -93,10 +101,15 @@ main =
     extsNames <- getRequiredInstanceExtensions
     inst <- mkInstance (icInfo extsNames) Foreign.nullPtr
     messenger <- mkDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr
-    devices <- vkEnumeratePhysicalDevices inst
-    liftIO . print =<< traverse vkGetPhysicalDeviceProperties devices
-    liftIO . print =<< traverse vkGetPhysicalDeviceFeatures devices
-    liftIO . print =<< traverse vkGetPhysicalDeviceQueueFamilyProperties devices
+    physicalDevice <-
+      (\case; [] -> error "vulkan no devices"; d:_ -> d) <$>
+      vkEnumeratePhysicalDevices inst
+    dFeatures <- vkGetPhysicalDeviceFeatures physicalDevice
+    qfProps <- vkGetPhysicalDeviceQueueFamilyProperties physicalDevice
+    ix <-
+      maybe (error "vulkan no suitable queue families") (pure . fromIntegral) $
+      findIndex (elem Graphics . queueFlags) qfProps
+    device <- vkCreateDevice physicalDevice (dcInfo ix extsNames dFeatures) Foreign.nullPtr
     mainLoop window
   where
     hints =
@@ -120,7 +133,7 @@ main =
 
     messengerCreateInfo =
       VkDebugUtilsMessengerCreateInfoEXT
-      { messageSeverity = [Verbose, Info, Warning, Error]
+      { messageSeverity = [Verbose, Warning, Error]
       , messageType = [General, Validation, Performance]
       , pfnUserCallback = \sev types cbData userData -> do
           putStrLn "debug callback:"
@@ -130,4 +143,20 @@ main =
           print userData
           pure False
       , pUserData = ()
+      }
+
+    dcInfo ix required fts =
+      VkDeviceCreateInfo
+      { flags = []
+      , pQueueCreateInfos =
+        [ VkDeviceQueueCreateInfo
+          { flags = []
+          , queueFamilyIndex = ix
+          , queueCount = 1
+          , pQueuePriorities = [1.0]
+          }
+        ]
+      , ppEnabledLayerNames = [LunargStandardValidation]
+      , ppEnabledExtensionNames = []
+      , pEnabledFeatures = fts
       }

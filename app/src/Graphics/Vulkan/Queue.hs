@@ -1,7 +1,5 @@
 {-# language DataKinds, TypeApplications #-}
-{-# language GADTs #-}
 {-# language ViewPatterns #-}
-{-# language StandaloneDeriving #-}
 module Graphics.Vulkan.Queue
   ( Vk.FlagType(..)
   , VkQueueType(..)
@@ -21,19 +19,17 @@ import Unsafe.Coerce (unsafeCoerce)
 import qualified Graphics.Vulkan.Core_1_1 as Vk
 import qualified Graphics.Vulkan.Marshal as Vk
 
-data VkQueueType a where
-  Graphics :: VkQueueType a
-  Compute :: VkQueueType a
-  Transfer :: VkQueueType a
-  SparseBinding :: VkQueueType a
-  Protected :: VkQueueType 'Vk.FlagBit
-deriving instance Eq (VkQueueType a)
-deriving instance Ord (VkQueueType a)
-deriving instance Show (VkQueueType a)
+data VkQueueType
+  = Graphics
+  | Compute
+  | Transfer
+  | SparseBinding
+  | Protected
+  deriving (Eq, Ord, Show)
 
 vkQueueBit ::
   Vk.VkQueueBitmask a ->
-  VkQueueType a
+  VkQueueType
 vkQueueBit a =
   case a of
     Vk.VK_QUEUE_GRAPHICS_BIT -> Graphics
@@ -43,7 +39,7 @@ vkQueueBit a =
     (unsafeCoerce -> Vk.VK_QUEUE_PROTECTED_BIT) -> unsafeCoerce Protected
 
 unVkQueueBit ::
-  VkQueueType a ->
+  VkQueueType ->
   Vk.VkQueueBitmask a
 unVkQueueBit a =
   case a of
@@ -51,11 +47,12 @@ unVkQueueBit a =
     Compute -> Vk.VK_QUEUE_COMPUTE_BIT
     Transfer -> Vk.VK_QUEUE_TRANSFER_BIT
     SparseBinding -> Vk.VK_QUEUE_SPARSE_BINDING_BIT
-    Protected -> Vk.VK_QUEUE_PROTECTED_BIT
+    -- see https://github.com/achirkin/vulkan/issues/29
+    Protected -> unsafeCoerce Vk.VK_QUEUE_PROTECTED_BIT
 
 vkQueueBits ::
   Vk.VkQueueFlags ->
-  [VkQueueType 'Vk.FlagMask]
+  [VkQueueType]
 vkQueueBits a =
   foldr
   (\(mask, val) rest -> if mask .&. a == mask then val : rest else rest)
@@ -64,10 +61,11 @@ vkQueueBits a =
   , (Vk.VK_QUEUE_COMPUTE_BIT, Compute)
   , (Vk.VK_QUEUE_TRANSFER_BIT, Transfer)
   , (Vk.VK_QUEUE_SPARSE_BINDING_BIT, SparseBinding)
+  , (unsafeCoerce Vk.VK_QUEUE_PROTECTED_BIT, Protected)
   ]
 
 unVkQueueBits ::
-  [VkQueueType 'Vk.FlagMask] ->
+  [VkQueueType] ->
   Vk.VkQueueFlags
 unVkQueueBits = foldr (\a b -> unVkQueueBit a .|. b) 0
 
@@ -88,7 +86,7 @@ vkExtent3D p =
 
 data VkQueueFamilyProperties
   = VkQueueFamilyProperties
-  { queueFlags :: [VkQueueType 'Vk.FlagMask]
+  { queueFlags :: [VkQueueType]
   , queueCount :: Word32
   , timestampValidBits :: Word32
   , minImageTransferGranularity :: VkExtent3D
