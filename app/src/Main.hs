@@ -26,6 +26,7 @@ import Graphics.Vulkan.Core_1_0
   , VkBool32
   )
 
+import qualified Data.Set as Set
 import qualified Foreign.C.String as Foreign
 import qualified Foreign.Marshal.Alloc as Foreign
 import qualified Foreign.Marshal.Array as Foreign
@@ -115,8 +116,8 @@ main :: IO ()
 main =
   vulkanGLFW . runManaged $ do
     window <- mkWindow hints 1280 960 "vulkan" Nothing Nothing
-    extsNames <- getRequiredInstanceExtensions
-    inst <- mkInstance (icInfo extsNames) Foreign.nullPtr
+    requiredExts <- getRequiredInstanceExtensions
+    inst <- mkInstance (icInfo requiredExts) Foreign.nullPtr
     messenger <- mkDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr
     surface <- glfwCreateWindowSurface inst window Foreign.nullPtr
     physicalDevice <-
@@ -124,19 +125,25 @@ main =
       vkEnumeratePhysicalDevices inst
     dFeatures <- vkGetPhysicalDeviceFeatures physicalDevice
     qfProps <- vkGetPhysicalDeviceQueueFamilyProperties physicalDevice
-    qfix <-
+    graphicsQfIx <-
+      maybe (error "vulkan no suitable queue families") (pure . fromIntegral) $
+      findIndex (elem Graphics . queueFlags) qfProps
+    presentQfIx <-
       maybe (error "vulkan no suitable queue families") (pure . fromIntegral) =<<
       ifindIndexM
         (\ix p -> do
-            b <-
-              vkGetPhysicalDeviceSurfaceSupportKHR
-                physicalDevice
-                ix
-                surface
-            pure $ elem Graphics (queueFlags p) && b)
+           vkGetPhysicalDeviceSurfaceSupportKHR
+             physicalDevice
+             ix
+             surface)
         qfProps
-    device <- vkCreateDevice physicalDevice (dcInfo qfix extsNames dFeatures) Foreign.nullPtr
-    queue <- vkGetDeviceQueue device qfix 0
+    device <-
+      vkCreateDevice
+        physicalDevice
+        (dcInfo graphicsQfIx presentQfIx requiredExts dFeatures)
+        Foreign.nullPtr
+    graphicsQ <- vkGetDeviceQueue device graphicsQfIx 0
+    presentQ <- vkGetDeviceQueue device presentQfIx 0
     mainLoop window
   where
     hints =
@@ -172,17 +179,21 @@ main =
       , pUserData = ()
       }
 
-    dcInfo ix required fts =
+    dcInfo gqix pqix required fts =
       VkDeviceCreateInfo
       { flags = []
       , pQueueCreateInfos =
-        [ VkDeviceQueueCreateInfo
-          { flags = []
-          , queueFamilyIndex = ix
-          , queueCount = 1
-          , pQueuePriorities = [1.0]
-          }
-        ]
+        foldr
+          (\ix rest ->
+             VkDeviceQueueCreateInfo
+             { flags = []
+             , queueFamilyIndex = ix
+             , queueCount = 1
+             , pQueuePriorities = [1.0]
+             } :
+             rest)
+          []
+          (Set.fromList [gqix, pqix])
       , ppEnabledLayerNames = [LunargStandardValidation]
       , ppEnabledExtensionNames = []
       , pEnabledFeatures = fts
