@@ -29,6 +29,7 @@ import Graphics.Vulkan.Ext.Surface
 import Graphics.Vulkan.Extent (VkExtent2D, unVkExtent2D)
 import Graphics.Vulkan.Format (VkFormat, unVkFormat)
 import Graphics.Vulkan.Utils (unVkBool32)
+import Graphics.Vulkan.Result (vkResult)
 
 data VkSwapchainCreateFlagKHR
   = SplitInstanceBindRegions
@@ -131,3 +132,17 @@ vkCreateSwapchainKHR d info cbs = do
   using $ managed (bracket
     (Foreign.peek scPtr)
     (\sc -> Vk.vkDestroySwapchainKHR d sc cbs))
+
+vkGetSwapchainImagesKHR ::
+  MonadIO m =>
+  Vk.VkDevice ->
+  Vk.VkSwapchainKHR ->
+  m [Vk.VkImage]
+vkGetSwapchainImagesKHR d sc =
+  liftIO $
+  Foreign.alloca $ \countPtr -> do
+    vkResult =<< Vk.vkGetSwapchainImagesKHR d sc countPtr Foreign.nullPtr
+    count <- fromIntegral <$> Foreign.peek countPtr
+    Foreign.allocaArray count $ \arrayPtr -> do
+      vkResult =<< Vk.vkGetSwapchainImagesKHR d sc countPtr arrayPtr
+      Foreign.peekArray count arrayPtr

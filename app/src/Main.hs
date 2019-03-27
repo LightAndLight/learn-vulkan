@@ -68,7 +68,10 @@ import Graphics.Vulkan.Ext.Surface
   , vkGetPhysicalDeviceSurfaceFormatsKHR
   , vkGetPhysicalDeviceSurfacePresentModesKHR
   )
-import Graphics.Vulkan.Ext.Swapchain (VkSwapchainCreateInfoKHR(..), vkCreateSwapchainKHR)
+import Graphics.Vulkan.Ext.Swapchain
+  ( VkSwapchainCreateInfoKHR(..)
+  , vkCreateSwapchainKHR, vkGetSwapchainImagesKHR
+  )
 import Graphics.Vulkan.Extent (VkExtent2D(..))
 import Graphics.Vulkan.Format (VkFormat(..))
 import Graphics.Vulkan.ImageCreateInfo (VkSharingMode(..), VkImageUsageFlag(..))
@@ -163,6 +166,10 @@ main =
         physicalDevice
         (dcInfo graphicsQfIx presentQfIx requiredExts dFeatures)
         Foreign.nullPtr
+
+    graphicsQ <- vkGetDeviceQueue device graphicsQfIx 0
+    presentQ <- vkGetDeviceQueue device presentQfIx 0
+
     availableFormats <- vkGetPhysicalDeviceSurfaceFormatsKHR physicalDevice surface
     surfaceFormat <-
       case availableFormats of
@@ -173,8 +180,10 @@ main =
             preferredFormat `elem` availableFormats
           then pure preferredFormat
           else error "vulkan couldn't find preferred format"
+
     availablePresentModes <- vkGetPhysicalDeviceSurfacePresentModesKHR physicalDevice surface
     surfaceCapabilities <- vkGetPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice surface
+
     let
       presentMode = mkPresentMode availablePresentModes
       swapExtent = mkSwapExtent surfaceCapabilities
@@ -201,9 +210,9 @@ main =
         , oldSwapchain = Nothing
         }
 
-    swapChain <- vkCreateSwapchainKHR device swapchainCreateInfo Foreign.nullPtr
-    graphicsQ <- vkGetDeviceQueue device graphicsQfIx 0
-    presentQ <- vkGetDeviceQueue device presentQfIx 0
+    swapchain <- vkCreateSwapchainKHR device swapchainCreateInfo Foreign.nullPtr
+    images <- vkGetSwapchainImagesKHR device swapchain
+
     mainLoop window
   where
     hints =
