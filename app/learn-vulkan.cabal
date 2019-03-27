@@ -30,6 +30,7 @@ executable learn-vulkan
     Graphics.Vulkan.Ext.Swapchain
     Graphics.Vulkan.Extent
     Graphics.Vulkan.Format
+    Graphics.Vulkan.ImageViewCreateInfo
     Graphics.Vulkan.ImageCreateInfo
     Graphics.Vulkan.Instance
     Graphics.Vulkan.InstanceCreateInfo
