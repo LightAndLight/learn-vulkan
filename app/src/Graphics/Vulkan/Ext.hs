@@ -97,8 +97,8 @@ unVkInstanceExtension ext =
     DebugUtils -> VK_EXT_DEBUG_UTILS_EXTENSION_NAME
     UnknownInstanceExtension str -> str
 
-getRequiredInstanceExtensions :: MonadIO m => m [VkInstanceExtension]
-getRequiredInstanceExtensions = liftIO $ fmap vkInstanceExtension <$> GLFW.getRequiredInstanceExtensions
+glfwGetRequiredInstanceExtensions :: MonadIO m => m [VkInstanceExtension]
+glfwGetRequiredInstanceExtensions = liftIO $ fmap vkInstanceExtension <$> GLFW.getRequiredInstanceExtensions
 
 data VkInstanceExtensionProperties
   = VkInstanceExtensionProperties
@@ -168,11 +168,15 @@ vkEnumerateDeviceExtensionProperties ::
   m [VkDeviceExtensionProperties]
 vkEnumerateDeviceExtensionProperties pd mLayer =
   liftIO $
-  Foreign.withCString (fold mLayer) $ \layerPtr ->
-  Foreign.alloca $ \countPtr -> do
-    vkResult =<< Vk.vkEnumerateDeviceExtensionProperties pd layerPtr countPtr Foreign.nullPtr
-    count <- fromIntegral <$> Foreign.peek layerPtr
-    Foreign.allocaArray count $ \arrayPtr -> do
-      vkResult =<< Vk.vkEnumerateDeviceExtensionProperties pd layerPtr countPtr arrayPtr
-      properties <- Foreign.peekArray count arrayPtr
-      traverse vkDeviceExtensionProperties properties
+  Foreign.alloca $ \countPtr ->
+  case mLayer of
+    Nothing -> go countPtr Foreign.nullPtr
+    Just layer -> Foreign.withCString layer $ go countPtr
+  where
+    go countPtr layerPtr = do
+      vkResult =<< Vk.vkEnumerateDeviceExtensionProperties pd layerPtr countPtr Foreign.nullPtr
+      count <- fromIntegral <$> Foreign.peek countPtr
+      Foreign.allocaArray count $ \arrayPtr -> do
+        vkResult =<< Vk.vkEnumerateDeviceExtensionProperties pd layerPtr countPtr arrayPtr
+        properties <- Foreign.peekArray count arrayPtr
+        traverse vkDeviceExtensionProperties properties

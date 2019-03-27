@@ -45,8 +45,9 @@ import Graphics.Vulkan.DeviceQueueCreateInfo
   (VkDeviceQueueCreateInfo(..))
 import Graphics.Vulkan.Ext
   ( VkInstanceExtension(..)
-  , getRequiredInstanceExtensions
+  , glfwGetRequiredInstanceExtensions
   , VkDeviceExtension(..)
+  , vkEnumerateDeviceExtensionProperties
   )
 import Graphics.Vulkan.Ext.DebugUtils
   ( VkDebugUtilsMessengerCreateInfoEXT(..)
@@ -119,7 +120,7 @@ main :: IO ()
 main =
   vulkanGLFW . runManaged $ do
     window <- mkWindow hints 1280 960 "vulkan" Nothing Nothing
-    requiredExts <- getRequiredInstanceExtensions
+    requiredExts <- glfwGetRequiredInstanceExtensions
     inst <- mkInstance (icInfo requiredExts) Foreign.nullPtr
     messenger <- mkDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr
     surface <- glfwCreateWindowSurface inst window Foreign.nullPtr
