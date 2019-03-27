@@ -1,3 +1,4 @@
+{-# language BangPatterns #-}
 {-# language DataKinds #-}
 {-# language DuplicateRecordFields #-}
 {-# language LambdaCase #-}
@@ -49,7 +50,8 @@ import Graphics.Vulkan.Ext.DebugUtils
   , VkDebugUtilsMessageType(..)
   , mkDebugUtilsMessenger
   )
-import Graphics.Vulkan.Ext.Surface (glfwCreateWindowSurface)
+import Graphics.Vulkan.Ext.Surface
+  (glfwCreateWindowSurface, vkGetPhysicalDeviceSurfaceSupportKHR)
 import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
@@ -95,6 +97,20 @@ mkWindow hints w h name mMonitor mWindow = do
       fromMaybe (error "glfw window create failed") <$>
       GLFW.createWindow w h name mMonitor mWindow
 
+ifindIndexM ::
+  (Num ix, Monad m) =>
+  (ix -> a -> m Bool) ->
+  [a] ->
+  m (Maybe ix)
+ifindIndexM p = go 0
+  where
+    go !n [] = pure Nothing
+    go !n (x:xs) = do
+      b <- p n x
+      if b
+        then pure $ Just n
+        else go (n+1) xs
+
 main :: IO ()
 main =
   vulkanGLFW . runManaged $ do
@@ -109,8 +125,16 @@ main =
     dFeatures <- vkGetPhysicalDeviceFeatures physicalDevice
     qfProps <- vkGetPhysicalDeviceQueueFamilyProperties physicalDevice
     qfix <-
-      maybe (error "vulkan no suitable queue families") (pure . fromIntegral) $
-      findIndex (elem Graphics . queueFlags) qfProps
+      maybe (error "vulkan no suitable queue families") (pure . fromIntegral) =<<
+      ifindIndexM
+        (\ix p -> do
+            b <-
+              vkGetPhysicalDeviceSurfaceSupportKHR
+                physicalDevice
+                ix
+                surface
+            pure $ elem Graphics (queueFlags p) && b)
+        qfProps
     device <- vkCreateDevice physicalDevice (dcInfo qfix extsNames dFeatures) Foreign.nullPtr
     queue <- vkGetDeviceQueue device qfix 0
     mainLoop window
