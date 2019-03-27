@@ -24,9 +24,11 @@ executable learn-vulkan
     Graphics.Vulkan.DeviceCreateInfo
     Graphics.Vulkan.DeviceQueueCreateInfo
     Graphics.Vulkan.Ext
+    Graphics.Vulkan.Ext.ColorSpace
     Graphics.Vulkan.Ext.DebugUtils
     Graphics.Vulkan.Ext.Surface
     Graphics.Vulkan.Extent
+    Graphics.Vulkan.Format
     Graphics.Vulkan.ImageCreateInfo
     Graphics.Vulkan.Instance
     Graphics.Vulkan.InstanceCreateInfo
