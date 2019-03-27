@@ -4,6 +4,7 @@
 {-# language LambdaCase #-}
 {-# language MagicHash #-}
 {-# language PatternSynonyms, ViewPatterns #-}
+{-# language ScopedTypeVariables #-}
 {-# language TypeApplications #-}
 module Main where
 
@@ -60,14 +61,17 @@ import Graphics.Vulkan.Ext.Surface
   ( VkSurfaceFormatKHR(..)
   , VkPresentModeKHR(..)
   , VkSurfaceCapabilitiesKHR(..)
+  , VkCompositeAlphaFlagKHR(..)
   , glfwCreateWindowSurface
   , vkGetPhysicalDeviceSurfaceSupportKHR
   , vkGetPhysicalDeviceSurfaceCapabilitiesKHR
   , vkGetPhysicalDeviceSurfaceFormatsKHR
   , vkGetPhysicalDeviceSurfacePresentModesKHR
   )
+import Graphics.Vulkan.Ext.Swapchain (VkSwapchainCreateInfoKHR(..), vkCreateSwapchainKHR)
 import Graphics.Vulkan.Extent (VkExtent2D(..))
 import Graphics.Vulkan.Format (VkFormat(..))
+import Graphics.Vulkan.ImageCreateInfo (VkSharingMode(..), VkImageUsageFlag(..))
 import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
@@ -79,6 +83,8 @@ import Graphics.Vulkan.PhysicalDevice
   )
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Result (vkResult)
+
+import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))
 
 mainLoop :: MonadIO m => GLFW.Window -> m ()
 mainLoop window = go
@@ -168,10 +174,34 @@ main =
           then pure preferredFormat
           else error "vulkan couldn't find preferred format"
     availablePresentModes <- vkGetPhysicalDeviceSurfacePresentModesKHR physicalDevice surface
-    let presentMode = mkPresentMode availablePresentModes
     surfaceCapabilities <- vkGetPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice surface
-    let swapExtent = mkSwapExtent surfaceCapabilities
-    let imageCount = mkImageCount surfaceCapabilities
+    let
+      presentMode = mkPresentMode availablePresentModes
+      swapExtent = mkSwapExtent surfaceCapabilities
+      imageCount = mkImageCount surfaceCapabilities
+
+      swapchainCreateInfo =
+        VkSwapchainCreateInfoKHR
+        { flags = []
+        , surface = surface
+        , minImageCount = imageCount
+        , imageFormat = format surfaceFormat
+        , imageColorSpace = colorSpace surfaceFormat
+        , imageExtent = swapExtent
+        , imageArrayLayers = 1
+        , imageUsage = [ColorAttachment]
+        , imageSharingMode =
+            if graphicsQfIx /= presentQfIx then Concurrent else Exclusive
+        , pQueueFamilyIndices =
+            if graphicsQfIx /= presentQfIx then [graphicsQfIx, presentQfIx] else []
+        , preTransform = currentTransform surfaceCapabilities
+        , compositeAlpha = Opaque
+        , presentMode = presentMode
+        , clipped = True
+        , oldSwapchain = Nothing
+        }
+
+    swapChain <- vkCreateSwapchainKHR device swapchainCreateInfo Foreign.nullPtr
     graphicsQ <- vkGetDeviceQueue device graphicsQfIx 0
     presentQ <- vkGetDeviceQueue device presentQfIx 0
     mainLoop window
@@ -196,9 +226,9 @@ main =
         else ImmediateKHR
 
     mkImageCount scs =
-      if maxImageCount scs == 0
-      then minImageCount scs + 1
-      else min (minImageCount scs + 1) (maxImageCount scs)
+      if SurfaceCapabilities.maxImageCount scs == 0
+      then SurfaceCapabilities.minImageCount scs + 1
+      else min (SurfaceCapabilities.minImageCount scs + 1) (SurfaceCapabilities.maxImageCount scs)
 
     mkSwapExtent scs =
       VkExtent2D

@@ -2,14 +2,18 @@
 {-# language ViewPatterns #-}
 module Graphics.Vulkan.Ext.Swapchain where
 
+import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Managed.Safe (MonadManaged, using, managed)
 import Data.Bits ((.&.), (.|.))
 import Data.Maybe (fromMaybe)
 import Data.Word (Word32)
 import Unsafe.Coerce (unsafeCoerce)
 
+import qualified Foreign.Marshal.Alloc as Foreign
 import qualified Foreign.Marshal.Array as Foreign
 import qualified Foreign.Ptr as Foreign
+import qualified Foreign.Storable as Foreign
 import qualified Graphics.Vulkan.Ext.VK_KHR_surface as Vk
 import qualified Graphics.Vulkan.Ext.VK_KHR_swapchain as Vk
 
@@ -79,7 +83,6 @@ data VkSwapchainCreateInfoKHR
   , imageArrayLayers :: Word32
   , imageUsage :: [VkImageUsageFlag]
   , imageSharingMode :: VkSharingMode
-  , queueFamilyIndexCount :: Word32
   , pQueueFamilyIndices :: [Word32]
   , preTransform :: VkSurfaceTransformFlagKHR
   , compositeAlpha :: VkCompositeAlphaFlagKHR
@@ -106,10 +109,25 @@ unVkSwapchainCreateInfoKHR p =
     Vk.writeField @"imageArrayLayers" infoPtr (imageArrayLayers p)
     Vk.writeField @"imageUsage" infoPtr (unVkImageUsageBits $ imageUsage p)
     Vk.writeField @"imageSharingMode" infoPtr (unVkSharingMode $ imageSharingMode p)
-    Vk.writeField @"queueFamilyIndexCount" infoPtr (queueFamilyIndexCount p)
+    Vk.writeField @"queueFamilyIndexCount" infoPtr (fromIntegral . length $ pQueueFamilyIndices p)
     Vk.writeField @"pQueueFamilyIndices" infoPtr arrayPtr
     Vk.writeField @"preTransform" infoPtr (unVkSurfaceTransformBit $ preTransform p)
     Vk.writeField @"compositeAlpha" infoPtr (unVkCompositeAlphaBit $ compositeAlpha p)
     Vk.writeField @"presentMode" infoPtr (unVkPresentModeKHR $ presentMode p)
     Vk.writeField @"clipped" infoPtr (unVkBool32 $ clipped p)
     Vk.writeField @"oldSwapchain" infoPtr (fromMaybe Vk.VK_NULL_HANDLE $ oldSwapchain p)
+
+vkCreateSwapchainKHR ::
+  (MonadManaged m, MonadIO m) =>
+  Vk.VkDevice ->
+  VkSwapchainCreateInfoKHR ->
+  Foreign.Ptr Vk.VkAllocationCallbacks ->
+  m Vk.VkSwapchainKHR
+vkCreateSwapchainKHR d info cbs = do
+  scPtr <- using $ managed Foreign.alloca
+  liftIO $ do
+    info' <- unVkSwapchainCreateInfoKHR info
+    Vk.vkCreateSwapchainKHR d (Vk.unsafePtr info') cbs scPtr
+  using $ managed (bracket
+    (Foreign.peek scPtr)
+    (\sc -> Vk.vkDestroySwapchainKHR d sc cbs))
