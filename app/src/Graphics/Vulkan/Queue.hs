@@ -19,6 +19,8 @@ import Unsafe.Coerce (unsafeCoerce)
 import qualified Graphics.Vulkan.Core_1_1 as Vk
 import qualified Graphics.Vulkan.Marshal as Vk
 
+import Graphics.Vulkan.Extent (VkExtent3D, vkExtent3D)
+
 data VkQueueType
   = Graphics
   | Compute
@@ -68,21 +70,6 @@ unVkQueueBits ::
   [VkQueueType] ->
   Vk.VkQueueFlags
 unVkQueueBits = foldr (\a b -> unVkQueueBit a .|. b) 0
-
-data VkExtent3D
-  = VkExtent3D
-  { width :: Word32
-  , height :: Word32
-  , depth :: Word32
-  } deriving (Eq, Ord, Show)
-
-vkExtent3D :: Vk.VkExtent3D -> VkExtent3D
-vkExtent3D p =
-  VkExtent3D
-  { width = Vk.getField @"width" p
-  , height = Vk.getField @"height" p
-  , depth = Vk.getField @"depth" p
-  }
 
 data VkQueueFamilyProperties
   = VkQueueFamilyProperties

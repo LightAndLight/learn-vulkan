@@ -56,7 +56,10 @@ import Graphics.Vulkan.Ext.DebugUtils
   , mkDebugUtilsMessenger
   )
 import Graphics.Vulkan.Ext.Surface
-  (glfwCreateWindowSurface, vkGetPhysicalDeviceSurfaceSupportKHR)
+  ( glfwCreateWindowSurface
+  , vkGetPhysicalDeviceSurfaceSupportKHR
+  , vkGetPhysicalDeviceSurfaceCapabilitiesKHR
+  )
 import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
@@ -146,6 +149,7 @@ main =
         physicalDevice
         (dcInfo graphicsQfIx presentQfIx requiredExts dFeatures)
         Foreign.nullPtr
+    liftIO . print =<< vkGetPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice surface
     graphicsQ <- vkGetDeviceQueue device graphicsQfIx 0
     presentQ <- vkGetDeviceQueue device presentQfIx 0
     mainLoop window

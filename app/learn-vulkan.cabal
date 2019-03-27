@@ -26,6 +26,8 @@ executable learn-vulkan
     Graphics.Vulkan.Ext
     Graphics.Vulkan.Ext.DebugUtils
     Graphics.Vulkan.Ext.Surface
+    Graphics.Vulkan.Extent
+    Graphics.Vulkan.ImageCreateInfo
     Graphics.Vulkan.Instance
     Graphics.Vulkan.InstanceCreateInfo
     Graphics.Vulkan.ObjectType
