@@ -37,7 +37,7 @@ import qualified Graphics.Vulkan.Marshal as Vk
 import qualified Graphics.UI.GLFW as GLFW
 
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
-import Graphics.Vulkan.Device (vkCreateDevice)
+import Graphics.Vulkan.Device (vkCreateDevice, vkGetDeviceQueue)
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
   (VkDeviceQueueCreateInfo(..))
@@ -106,10 +106,11 @@ main =
       vkEnumeratePhysicalDevices inst
     dFeatures <- vkGetPhysicalDeviceFeatures physicalDevice
     qfProps <- vkGetPhysicalDeviceQueueFamilyProperties physicalDevice
-    ix <-
+    qfix <-
       maybe (error "vulkan no suitable queue families") (pure . fromIntegral) $
       findIndex (elem Graphics . queueFlags) qfProps
-    device <- vkCreateDevice physicalDevice (dcInfo ix extsNames dFeatures) Foreign.nullPtr
+    device <- vkCreateDevice physicalDevice (dcInfo qfix extsNames dFeatures) Foreign.nullPtr
+    queue <- vkGetDeviceQueue device qfix 0
     mainLoop window
   where
     hints =
