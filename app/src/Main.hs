@@ -49,6 +49,7 @@ import Graphics.Vulkan.PhysicalDevice
   ( vkEnumeratePhysicalDevices
   , vkGetPhysicalDeviceProperties
   , vkGetPhysicalDeviceFeatures
+  , vkGetPhysicalDeviceQueueFamilyProperties
   )
 import Graphics.Vulkan.Result (vkResult)
 
@@ -95,6 +96,7 @@ main =
     devices <- vkEnumeratePhysicalDevices inst
     liftIO . print =<< traverse vkGetPhysicalDeviceProperties devices
     liftIO . print =<< traverse vkGetPhysicalDeviceFeatures devices
+    liftIO . print =<< traverse vkGetPhysicalDeviceQueueFamilyProperties devices
     mainLoop window
   where
     hints =

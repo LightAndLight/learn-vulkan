@@ -3,6 +3,7 @@ module Graphics.Vulkan.PhysicalDevice
   ( vkEnumeratePhysicalDevices
   , vkGetPhysicalDeviceProperties
   , vkGetPhysicalDeviceFeatures
+  , vkGetPhysicalDeviceQueueFamilyProperties
   , Vk.VkPhysicalDevice
   , VkPhysicalDeviceType(..)
   , vkPhysicalDeviceType, unVkPhysicalDeviceType
@@ -26,6 +27,8 @@ import qualified Foreign.Marshal.Array as Foreign
 import qualified Foreign.Ptr as Foreign
 import qualified Foreign.Storable as Foreign
 
+import Graphics.Vulkan.Queue
+  (VkQueueFamilyProperties, vkQueueFamilyProperties)
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.SampleCount (VkSampleCount, vkSampleCountBits)
 
@@ -524,3 +527,16 @@ vkGetPhysicalDeviceFeatures d =
   Foreign.alloca $ \fPtr -> do
     Vk.vkGetPhysicalDeviceFeatures d fPtr
     vkPhysicalDeviceFeatures <$> Foreign.peek fPtr
+
+vkGetPhysicalDeviceQueueFamilyProperties ::
+  MonadIO m =>
+  Vk.VkPhysicalDevice ->
+  m [VkQueueFamilyProperties]
+vkGetPhysicalDeviceQueueFamilyProperties p =
+  liftIO $
+  Foreign.alloca $ \countPtr -> do
+    Vk.vkGetPhysicalDeviceQueueFamilyProperties p countPtr Foreign.nullPtr
+    count <- fromIntegral <$> Foreign.peek countPtr
+    Foreign.allocaArray count $ \arrayPtr -> do
+      Vk.vkGetPhysicalDeviceQueueFamilyProperties p countPtr arrayPtr
+      fmap vkQueueFamilyProperties <$> Foreign.peekArray count arrayPtr
