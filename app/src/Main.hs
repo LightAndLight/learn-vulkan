@@ -75,6 +75,11 @@ import Graphics.Vulkan.Ext.Swapchain
 import Graphics.Vulkan.Extent (VkExtent2D(..))
 import Graphics.Vulkan.Format (VkFormat(..))
 import Graphics.Vulkan.ImageCreateInfo (VkSharingMode(..), VkImageUsageFlag(..))
+import Graphics.Vulkan.ImageViewCreateInfo
+  ( VkImageViewCreateInfo(..), VkImageSubresourceRange(..), VkComponentMapping(..)
+  , VkImageAspectFlag(..), VkComponentSwizzle(..), VkImageViewType(..)
+  , vkCreateImageView
+  )
 import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
@@ -88,6 +93,7 @@ import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Result (vkResult)
 
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))
+import qualified Graphics.Vulkan.Ext.Surface as SurfaceFormat (VkSurfaceFormatKHR(..))
 
 mainLoop :: MonadIO m => GLFW.Window -> m ()
 mainLoop window = go
@@ -176,7 +182,7 @@ main =
         [] -> error "vulkan no surface formats"
         h:_ ->
           if
-            format h == UNDEFINED ||
+            SurfaceFormat.format h == UNDEFINED ||
             preferredFormat `elem` availableFormats
           then pure preferredFormat
           else error "vulkan couldn't find preferred format"
@@ -194,7 +200,7 @@ main =
         { flags = []
         , surface = surface
         , minImageCount = imageCount
-        , imageFormat = format surfaceFormat
+        , imageFormat = SurfaceFormat.format surfaceFormat
         , imageColorSpace = colorSpace surfaceFormat
         , imageExtent = swapExtent
         , imageArrayLayers = 1
@@ -212,6 +218,35 @@ main =
 
     swapchain <- vkCreateSwapchainKHR device swapchainCreateInfo Foreign.nullPtr
     images <- vkGetSwapchainImagesKHR device swapchain
+
+    let
+      imageViewCreateInfo img =
+        VkImageViewCreateInfo
+        { flags = []
+        , image = img
+        , viewType = TwoD
+        , format = SurfaceFormat.format surfaceFormat
+        , components =
+            VkComponentMapping
+            { r = SwizzleIdentity
+            , g = SwizzleIdentity
+            , b = SwizzleIdentity
+            , a = SwizzleIdentity
+            }
+        , subresourceRange =
+            VkImageSubresourceRange
+            { aspectMask = [Color]
+            , baseMipLevel = 0
+            , levelCount = 1
+            , baseArrayLayer = 0
+            , layerCount = 1
+            }
+        }
+
+    imageViews <-
+      traverse
+        (\i -> vkCreateImageView device (imageViewCreateInfo i) Foreign.nullPtr)
+        images
 
     mainLoop window
   where
