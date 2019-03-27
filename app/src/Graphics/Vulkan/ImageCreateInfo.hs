@@ -72,3 +72,20 @@ unVkImageUsageBits ::
   [VkImageUsageFlag] ->
   Vk.VkImageUsageFlags
 unVkImageUsageBits = foldr (\a b -> unVkImageUsageBit a .|. b) 0
+
+data VkSharingMode
+  = Exclusive
+  | Concurrent
+  deriving (Eq, Ord, Show)
+
+vkSharingMode :: Vk.VkSharingMode -> VkSharingMode
+vkSharingMode a =
+  case a of
+    Vk.VK_SHARING_MODE_EXCLUSIVE -> Exclusive
+    Vk.VK_SHARING_MODE_CONCURRENT -> Concurrent
+
+unVkSharingMode :: VkSharingMode -> Vk.VkSharingMode
+unVkSharingMode a =
+  case a of
+    Exclusive -> Vk.VK_SHARING_MODE_EXCLUSIVE
+    Concurrent -> Vk.VK_SHARING_MODE_CONCURRENT

@@ -49,6 +49,7 @@ import Graphics.Vulkan.Ext
   , VkDeviceExtension(..)
   , vkEnumerateDeviceExtensionProperties
   )
+import Graphics.Vulkan.Ext.ColorSpace (VkColorSpaceKHR(..))
 import Graphics.Vulkan.Ext.DebugUtils
   ( VkDebugUtilsMessengerCreateInfoEXT(..)
   , VkDebugUtilsMessageSeverity(..)
@@ -56,10 +57,17 @@ import Graphics.Vulkan.Ext.DebugUtils
   , mkDebugUtilsMessenger
   )
 import Graphics.Vulkan.Ext.Surface
-  ( glfwCreateWindowSurface
+  ( VkSurfaceFormatKHR(..)
+  , VkPresentModeKHR(..)
+  , VkSurfaceCapabilitiesKHR(..)
+  , glfwCreateWindowSurface
   , vkGetPhysicalDeviceSurfaceSupportKHR
   , vkGetPhysicalDeviceSurfaceCapabilitiesKHR
+  , vkGetPhysicalDeviceSurfaceFormatsKHR
+  , vkGetPhysicalDeviceSurfacePresentModesKHR
   )
+import Graphics.Vulkan.Extent (VkExtent2D(..))
+import Graphics.Vulkan.Format (VkFormat(..))
 import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
@@ -149,7 +157,21 @@ main =
         physicalDevice
         (dcInfo graphicsQfIx presentQfIx requiredExts dFeatures)
         Foreign.nullPtr
-    liftIO . print =<< vkGetPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice surface
+    availableFormats <- vkGetPhysicalDeviceSurfaceFormatsKHR physicalDevice surface
+    surfaceFormat <-
+      case availableFormats of
+        [] -> error "vulkan no surface formats"
+        h:_ ->
+          if
+            format h == UNDEFINED ||
+            preferredFormat `elem` availableFormats
+          then pure preferredFormat
+          else error "vulkan couldn't find preferred format"
+    availablePresentModes <- vkGetPhysicalDeviceSurfacePresentModesKHR physicalDevice surface
+    let presentMode = mkPresentMode availablePresentModes
+    surfaceCapabilities <- vkGetPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice surface
+    let swapExtent = mkSwapExtent surfaceCapabilities
+    let imageCount = mkImageCount surfaceCapabilities
     graphicsQ <- vkGetDeviceQueue device graphicsQfIx 0
     presentQ <- vkGetDeviceQueue device presentQfIx 0
     mainLoop window
@@ -158,6 +180,41 @@ main =
       [ WindowHint'ClientAPI ClientAPI'NoAPI
       , WindowHint'Resizable False
       ]
+
+    preferredFormat =
+      VkSurfaceFormatKHR
+      { format = B8G8R8A8_UNORM
+      , colorSpace = SRGB_NONLINEAR_KHR
+      }
+
+    mkPresentMode pms =
+      if MailboxKHR `elem` pms
+      then MailboxKHR
+      else
+        if FifoKHR `elem` pms
+        then FifoKHR
+        else ImmediateKHR
+
+    mkImageCount scs =
+      if maxImageCount scs == 0
+      then minImageCount scs + 1
+      else min (minImageCount scs + 1) (maxImageCount scs)
+
+    mkSwapExtent scs =
+      VkExtent2D
+      { width =
+          max
+            (width $ minImageExtent scs)
+            (min
+               (width $ maxImageExtent scs)
+               (width $ currentExtent scs))
+      , height =
+          max
+            (height $ minImageExtent scs)
+            (min
+               (height $ maxImageExtent scs)
+               (height $ currentExtent scs))
+      }
 
     icInfo required =
       VkInstanceCreateInfo

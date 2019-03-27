@@ -8,13 +8,17 @@ import Control.Monad.Managed.Safe (MonadManaged, using, managed)
 import Data.Word (Word32)
 
 import qualified Foreign.Marshal.Alloc as Foreign
+import qualified Foreign.Marshal.Array as Foreign
 import qualified Foreign.Storable as Foreign
 import qualified Foreign.Ptr as Foreign
+import qualified Graphics.Vulkan.Ext.VK_KHR_shared_presentable_image as Vk
 import qualified Graphics.Vulkan.Ext.VK_KHR_surface as Vk
 import qualified Graphics.Vulkan.Marshal as Vk
 import qualified Graphics.UI.GLFW as GLFW
 
 import Graphics.Vulkan.Extent (VkExtent2D, vkExtent2D)
+import Graphics.Vulkan.Ext.ColorSpace (VkColorSpaceKHR, vkColorSpaceKHR)
+import Graphics.Vulkan.Format (VkFormat, vkFormat)
 import Graphics.Vulkan.ImageCreateInfo (VkImageUsageFlag, vkImageUsageBits)
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.Utils (vkBool32)
@@ -193,3 +197,73 @@ vkGetPhysicalDeviceSurfaceCapabilitiesKHR pd surf =
   liftIO . Foreign.alloca $ \scPtr -> do
     vkResult =<< Vk.vkGetPhysicalDeviceSurfaceCapabilitiesKHR pd surf scPtr
     vkSurfaceCapabilitiesKHR <$> Foreign.peek scPtr
+
+data VkSurfaceFormatKHR
+  = VkSurfaceFormatKHR
+  { format :: VkFormat
+  , colorSpace :: VkColorSpaceKHR
+  } deriving (Eq, Ord, Show)
+
+vkSurfaceFormatKHR :: Vk.VkSurfaceFormatKHR -> VkSurfaceFormatKHR
+vkSurfaceFormatKHR a =
+  VkSurfaceFormatKHR
+  { format = vkFormat $ Vk.getField @"format" a
+  , colorSpace = vkColorSpaceKHR $ Vk.getField @"colorSpace" a
+  }
+
+vkGetPhysicalDeviceSurfaceFormatsKHR ::
+  MonadIO m =>
+  Vk.VkPhysicalDevice ->
+  Vk.VkSurfaceKHR ->
+  m [VkSurfaceFormatKHR]
+vkGetPhysicalDeviceSurfaceFormatsKHR pd surf =
+  liftIO $
+  Foreign.alloca $ \countPtr -> do
+    vkResult =<< Vk.vkGetPhysicalDeviceSurfaceFormatsKHR pd surf countPtr Foreign.nullPtr
+    count <- fromIntegral <$> Foreign.peek countPtr
+    Foreign.allocaArray count $ \arrayPtr -> do
+      vkResult =<< Vk.vkGetPhysicalDeviceSurfaceFormatsKHR pd surf countPtr arrayPtr
+      fmap vkSurfaceFormatKHR <$> Foreign.peekArray count arrayPtr
+
+data VkPresentModeKHR
+  = ImmediateKHR
+  | MailboxKHR
+  | FifoKHR
+  | FifoRelaxedKHR
+  | SharedDemandRefreshKHR
+  | SharedContinuousRefreshKHR
+  deriving (Eq, Ord, Show)
+
+vkPresentModeKHR :: Vk.VkPresentModeKHR -> VkPresentModeKHR
+vkPresentModeKHR a =
+  case a of
+    Vk.VK_PRESENT_MODE_IMMEDIATE_KHR -> ImmediateKHR
+    Vk.VK_PRESENT_MODE_MAILBOX_KHR -> MailboxKHR
+    Vk.VK_PRESENT_MODE_FIFO_KHR -> FifoKHR
+    Vk.VK_PRESENT_MODE_FIFO_RELAXED_KHR -> FifoRelaxedKHR
+    Vk.VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR -> SharedDemandRefreshKHR
+    Vk.VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR -> SharedContinuousRefreshKHR
+
+unVkPresentModeKHR :: VkPresentModeKHR -> Vk.VkPresentModeKHR
+unVkPresentModeKHR a =
+  case a of
+    ImmediateKHR -> Vk.VK_PRESENT_MODE_IMMEDIATE_KHR
+    MailboxKHR -> Vk.VK_PRESENT_MODE_MAILBOX_KHR
+    FifoKHR -> Vk.VK_PRESENT_MODE_FIFO_KHR
+    FifoRelaxedKHR -> Vk.VK_PRESENT_MODE_FIFO_RELAXED_KHR
+    SharedDemandRefreshKHR -> Vk.VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR
+    SharedContinuousRefreshKHR -> Vk.VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR
+
+vkGetPhysicalDeviceSurfacePresentModesKHR ::
+  MonadIO m =>
+  Vk.VkPhysicalDevice ->
+  Vk.VkSurfaceKHR ->
+  m [VkPresentModeKHR]
+vkGetPhysicalDeviceSurfacePresentModesKHR pd surf =
+  liftIO $
+  Foreign.alloca $ \countPtr -> do
+    vkResult =<< Vk.vkGetPhysicalDeviceSurfacePresentModesKHR pd surf countPtr Foreign.nullPtr
+    count <- fromIntegral <$> Foreign.peek countPtr
+    Foreign.allocaArray count $ \arrayPtr -> do
+      vkResult =<< Vk.vkGetPhysicalDeviceSurfacePresentModesKHR pd surf countPtr arrayPtr
+      fmap vkPresentModeKHR <$> Foreign.peekArray count arrayPtr
