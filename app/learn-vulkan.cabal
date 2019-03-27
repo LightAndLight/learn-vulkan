@@ -25,6 +25,7 @@ executable learn-vulkan
     Graphics.Vulkan.DeviceQueueCreateInfo
     Graphics.Vulkan.Ext
     Graphics.Vulkan.Ext.DebugUtils
+    Graphics.Vulkan.Ext.Surface
     Graphics.Vulkan.Instance
     Graphics.Vulkan.InstanceCreateInfo
     Graphics.Vulkan.ObjectType
