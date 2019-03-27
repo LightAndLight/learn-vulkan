@@ -18,7 +18,7 @@ data VkInstanceCreateInfo
   = VkInstanceCreateInfo
   { pApplicationInfo :: VkApplicationInfo
   , ppEnabledLayerNames :: [VkLayer]
-  , ppEnabledExtensionNames :: [VkExtension]
+  , ppEnabledExtensionNames :: [VkInstanceExtension]
   } deriving (Eq, Ord, Show)
 
 mkInstanceCreateInfo ::
@@ -27,7 +27,7 @@ mkInstanceCreateInfo ::
   m (Foreign.Ptr Vk.VkInstanceCreateInfo)
 mkInstanceCreateInfo ii = do
   layerNamesPtr <- using $ managed (Foreign.withArray $ unVkLayer <$> layerNames)
-  extNamesPtr <- using $ managed (Foreign.withArray $ unVkExtension <$> extNames)
+  extNamesPtr <- using $ managed (Foreign.withArray $ unVkInstanceExtension <$> extNames)
   appInfoPtr <- mkApplicationInfo $ pApplicationInfo ii
   liftIO $
     fmap Vk.unsafePtr <$>

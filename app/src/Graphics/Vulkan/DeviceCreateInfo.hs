@@ -15,7 +15,7 @@ import qualified Graphics.Vulkan.Core_1_0 as Vk
 import qualified Graphics.Vulkan.Marshal as Vk
 
 import Graphics.Vulkan.DeviceQueueCreateInfo (VkDeviceQueueCreateInfo, unVkDeviceQueueCreateInfo)
-import Graphics.Vulkan.Ext (VkExtension, unVkExtension)
+import Graphics.Vulkan.Ext (VkDeviceExtension, unVkDeviceExtension)
 import Graphics.Vulkan.Layer (VkLayer, unVkLayer)
 import Graphics.Vulkan.PhysicalDevice (VkPhysicalDeviceFeatures, unVkPhysicalDeviceFeatures)
 
@@ -31,7 +31,7 @@ data VkDeviceCreateInfo
   { flags :: [VkDeviceCreateFlag]
   , pQueueCreateInfos :: [VkDeviceQueueCreateInfo]
   , ppEnabledLayerNames :: [VkLayer]
-  , ppEnabledExtensionNames :: [VkExtension]
+  , ppEnabledExtensionNames :: [VkDeviceExtension]
   , pEnabledFeatures :: VkPhysicalDeviceFeatures
   } deriving (Eq, Ord, Show)
 
@@ -42,7 +42,7 @@ unVkDeviceCreateInfo ::
 unVkDeviceCreateInfo p = do
   let layerNames = unVkLayer <$> ppEnabledLayerNames p
   layerNamesPtr <- using $ managed (Foreign.withArray layerNames)
-  let extNames = unVkExtension <$> ppEnabledExtensionNames p
+  let extNames = unVkDeviceExtension <$> ppEnabledExtensionNames p
   extNamesPtr <- using $ managed (Foreign.withArray extNames)
   creates <- traverse unVkDeviceQueueCreateInfo (pQueueCreateInfos p)
   createsPtr <- using $ managed (Foreign.withArray creates)

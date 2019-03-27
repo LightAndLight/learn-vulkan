@@ -44,7 +44,10 @@ import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
   (VkDeviceQueueCreateInfo(..))
 import Graphics.Vulkan.Ext
-  (VkExtension(..), vkExtension, unVkExtension, getRequiredInstanceExtensions)
+  ( VkInstanceExtension(..)
+  , getRequiredInstanceExtensions
+  , VkDeviceExtension(..)
+  )
 import Graphics.Vulkan.Ext.DebugUtils
   ( VkDebugUtilsMessengerCreateInfoEXT(..)
   , VkDebugUtilsMessageSeverity(..)
@@ -195,6 +198,6 @@ main =
           []
           (Set.fromList [gqix, pqix])
       , ppEnabledLayerNames = [LunargStandardValidation]
-      , ppEnabledExtensionNames = []
+      , ppEnabledExtensionNames = [Swapchain]
       , pEnabledFeatures = fts
       }

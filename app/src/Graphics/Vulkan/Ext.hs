@@ -1,4 +1,6 @@
 {-# language DataKinds, TypeApplications #-}
+{-# language DuplicateRecordFields #-}
+{-# language EmptyDataDeriving, EmptyCase #-}
 {-# language PatternSynonyms #-}
 module Graphics.Vulkan.Ext where
 
@@ -31,6 +33,8 @@ import Graphics.Vulkan.Ext.VK_EXT_debug_report
   (pattern VK_EXT_DEBUG_REPORT_EXTENSION_NAME)
 import Graphics.Vulkan.Ext.VK_EXT_debug_utils
   (pattern VK_EXT_DEBUG_UTILS_EXTENSION_NAME)
+import Graphics.Vulkan.Ext.VK_KHR_swapchain
+  (pattern VK_KHR_SWAPCHAIN_EXTENSION_NAME)
 
 import qualified Foreign.C.String as Foreign
 import qualified Foreign.Marshal.Alloc as Foreign
@@ -43,7 +47,7 @@ import qualified Graphics.Vulkan.Marshal as Vk
 
 import Graphics.Vulkan.Result (vkResult)
 
-data VkExtension
+data VkInstanceExtension
   = DeviceGroupCreation
   | ExternalFenceCapabilities
   | ExternalMemoryCapabilities
@@ -56,11 +60,11 @@ data VkExtension
   | XlibSurface
   | DebugReport
   | DebugUtils
-  | UnknownExtension Foreign.CString
+  | UnknownInstanceExtension Foreign.CString
   deriving (Eq, Show, Ord)
 
-vkExtension :: Foreign.CString -> VkExtension
-vkExtension ext =
+vkInstanceExtension :: Foreign.CString -> VkInstanceExtension
+vkInstanceExtension ext =
   case ext of
     VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME -> DeviceGroupCreation
     VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME -> ExternalFenceCapabilities
@@ -74,10 +78,10 @@ vkExtension ext =
     -- VK_KHR_XLIB_SURFACE_EXTENSION_NAME -> pure XlibSurface
     VK_EXT_DEBUG_REPORT_EXTENSION_NAME -> DebugReport
     VK_EXT_DEBUG_UTILS_EXTENSION_NAME -> DebugUtils
-    _ -> UnknownExtension ext
+    _ -> UnknownInstanceExtension ext
 
-unVkExtension :: VkExtension -> Foreign.CString
-unVkExtension ext =
+unVkInstanceExtension :: VkInstanceExtension -> Foreign.CString
+unVkInstanceExtension ext =
   case ext of
     DeviceGroupCreation -> VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME
     ExternalFenceCapabilities -> VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME
@@ -91,28 +95,28 @@ unVkExtension ext =
     -- XlibSurface -> VK_KHR_XLIB_SURFACE_EXTENSION_NAME
     DebugReport -> VK_EXT_DEBUG_REPORT_EXTENSION_NAME
     DebugUtils -> VK_EXT_DEBUG_UTILS_EXTENSION_NAME
-    UnknownExtension str -> str
+    UnknownInstanceExtension str -> str
 
-getRequiredInstanceExtensions :: MonadIO m => m [VkExtension]
-getRequiredInstanceExtensions = liftIO $ fmap vkExtension <$> GLFW.getRequiredInstanceExtensions
+getRequiredInstanceExtensions :: MonadIO m => m [VkInstanceExtension]
+getRequiredInstanceExtensions = liftIO $ fmap vkInstanceExtension <$> GLFW.getRequiredInstanceExtensions
 
-data VkExtensionProperties
-  = VkExtensionProperties
-  { extensionName :: VkExtension
+data VkInstanceExtensionProperties
+  = VkInstanceExtensionProperties
+  { extensionName :: VkInstanceExtension
   , specVersion :: Word32
   } deriving (Eq, Ord, Show)
 
-vkExtensionProperties :: MonadIO m => Vk.VkExtensionProperties -> m VkExtensionProperties
-vkExtensionProperties a =
+vkInstanceExtensionProperties :: MonadIO m => Vk.VkExtensionProperties -> m VkInstanceExtensionProperties
+vkInstanceExtensionProperties a =
   liftIO $
   (\ename ->
-     VkExtensionProperties
+     VkInstanceExtensionProperties
      { extensionName = ename
      , specVersion = Vk.getField @"specVersion" a
      }) <$>
-  Vk.withCStringField @"extensionName" a (pure . vkExtension)
+  Vk.withCStringField @"extensionName" a (pure . vkInstanceExtension)
 
-vkEnumerateInstanceExtensionProperties :: MonadIO m => Maybe String -> m [VkExtensionProperties]
+vkEnumerateInstanceExtensionProperties :: MonadIO m => Maybe String -> m [VkInstanceExtensionProperties]
 vkEnumerateInstanceExtensionProperties mLayerName =
   liftIO $
   Foreign.withCString (fold mLayerName) $ \layerName ->
@@ -122,4 +126,53 @@ vkEnumerateInstanceExtensionProperties mLayerName =
     Foreign.allocaArray count $ \propertiesPtr -> do
       vkResult =<< Vk.vkEnumerateInstanceExtensionProperties layerName countPtr propertiesPtr
       properties <- Foreign.peekArray count propertiesPtr
-      traverse vkExtensionProperties properties
+      traverse vkInstanceExtensionProperties properties
+
+data VkDeviceExtension
+  = Swapchain
+  | UnknownDeviceExtension Foreign.CString
+  deriving (Eq, Show, Ord)
+
+vkDeviceExtension :: Foreign.CString -> VkDeviceExtension
+vkDeviceExtension a =
+  case a of
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME -> Swapchain
+    _ -> UnknownDeviceExtension a
+
+unVkDeviceExtension :: VkDeviceExtension -> Foreign.CString
+unVkDeviceExtension a =
+  case a of
+    Swapchain -> VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    UnknownDeviceExtension s -> s
+
+data VkDeviceExtensionProperties
+  = VkDeviceExtensionProperties
+  { extensionName :: VkDeviceExtension
+  , specVersion :: Word32
+  } deriving (Eq, Ord, Show)
+
+vkDeviceExtensionProperties :: MonadIO m => Vk.VkExtensionProperties -> m VkDeviceExtensionProperties
+vkDeviceExtensionProperties a =
+  liftIO $
+  (\ename ->
+     VkDeviceExtensionProperties
+     { extensionName = ename
+     , specVersion = Vk.getField @"specVersion" a
+     }) <$>
+  Vk.withCStringField @"extensionName" a (pure . vkDeviceExtension)
+
+vkEnumerateDeviceExtensionProperties ::
+  MonadIO m =>
+  Vk.VkPhysicalDevice ->
+  Maybe String ->
+  m [VkDeviceExtensionProperties]
+vkEnumerateDeviceExtensionProperties pd mLayer =
+  liftIO $
+  Foreign.withCString (fold mLayer) $ \layerPtr ->
+  Foreign.alloca $ \countPtr -> do
+    vkResult =<< Vk.vkEnumerateDeviceExtensionProperties pd layerPtr countPtr Foreign.nullPtr
+    count <- fromIntegral <$> Foreign.peek layerPtr
+    Foreign.allocaArray count $ \arrayPtr -> do
+      vkResult =<< Vk.vkEnumerateDeviceExtensionProperties pd layerPtr countPtr arrayPtr
+      properties <- Foreign.peekArray count arrayPtr
+      traverse vkDeviceExtensionProperties properties
