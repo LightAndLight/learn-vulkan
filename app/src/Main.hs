@@ -89,6 +89,10 @@ import Graphics.Vulkan.PhysicalDevice
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
   )
+import Graphics.Vulkan.PipelineShaderStageCreateInfo
+  ( VkPipelineShaderStageCreateInfo(..)
+  , VkShaderStageFlag(..)
+  )
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
@@ -251,6 +255,27 @@ main =
 
     vert <- shaderModuleFromFile "app/shaders/vert.spv" [] device Foreign.nullPtr
     frag <- shaderModuleFromFile "app/shaders/frag.spv" [] device Foreign.nullPtr
+
+    let
+      vertShaderStageInfo :: VkPipelineShaderStageCreateInfo '[]
+      vertShaderStageInfo =
+        VkPipelineShaderStageCreateInfo
+        { flags = []
+        , stage = Vertex
+        , module_ = vert
+        , pName = "main"
+        , pSpecializationInfo = Nothing
+        }
+
+      fragShaderStageInfo :: VkPipelineShaderStageCreateInfo '[]
+      fragShaderStageInfo =
+        VkPipelineShaderStageCreateInfo
+        { flags = []
+        , stage = Fragment
+        , module_ = frag
+        , pName = "main"
+        , pSpecializationInfo = Nothing
+        }
 
     mainLoop window
   where

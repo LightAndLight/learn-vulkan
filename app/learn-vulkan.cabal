@@ -55,6 +55,7 @@ executable learn-vulkan
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_threading
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
     Graphics.Vulkan.PhysicalDevice
+    Graphics.Vulkan.PipelineShaderStageCreateInfo
     Graphics.Vulkan.Queue
     Graphics.Vulkan.Result
     Graphics.Vulkan.SampleCount
