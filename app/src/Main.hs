@@ -80,6 +80,13 @@ import Graphics.Vulkan.PhysicalDevice
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
   )
+import Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
+  ( VkPipelineColorBlendAttachmentState(..)
+  , VkColorComponentFlag(..), VkBlendOp(..), VkBlendFactor(..)
+  )
+import Graphics.Vulkan.Pipeline.ColorBlendStateCreateInfo
+  ( VkPipelineColorBlendStateCreateInfo(..), VkLogicOp(..)
+  )
 import Graphics.Vulkan.Pipeline.MultisampleStateCreateInfo
   ( VkPipelineMultisampleStateCreateInfo(..)
   )
@@ -343,6 +350,26 @@ main =
         , pSampleMask = []
         , alphaToCoverageEnable = False
         , alphaToOneEnable = False
+        }
+
+      colorBlendInfo =
+        VkPipelineColorBlendStateCreateInfo
+        { flags = []
+        , logicOpEnable = False
+        , logicOp = Copy
+        , pAttachments =
+          [ VkPipelineColorBlendAttachmentState
+            { blendEnable = False
+            , srcColorBlendFactor = One
+            , dstColorBlendFactor = Zero
+            , colorBlendOp = Add
+            , srcAlphaBlendFactor = One
+            , dstAlphaBlendFactor = Zero
+            , alphaBlendOp = Add
+            , colorWriteMask = [R, G, B, A]
+            }
+          ]
+        , blendConstants = (0, 0, 0, 0)
         }
 
     mainLoop window
