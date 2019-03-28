@@ -4,7 +4,7 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = import ./learn-vulkan.nix;
+  f = import ./vulkan-hs.nix;
 
   haskellPackages =
     if compiler == "default"

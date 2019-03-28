@@ -194,7 +194,7 @@ withSpecializationInfoEntries count si f = do
   where
     go ::
       forall x.
-      Word32 -> -- ^ offset into the array, in bytes
+      Word32 -> -- offset into the array, in bytes
       VkSpecializationInfo x ->
       Foreign.Ptr Vk.VkSpecializationMapEntry ->
       IO b

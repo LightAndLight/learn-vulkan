@@ -1,4 +1,8 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "default" }:
+let
+  compiler = "default";
+  overlays = [ (import ./overlay.nix compiler) ];
+in
+{ nixpkgs ? import <nixpkgs> { inherit overlays; } }:
 let
 
   inherit (nixpkgs) pkgs;

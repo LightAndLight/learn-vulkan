@@ -20,12 +20,6 @@ import Data.Traversable (for)
 import Data.Void (Void)
 import Data.Word (Word32, Word64)
 import Graphics.UI.GLFW (ClientAPI(..), WindowHint(..))
-import Graphics.Vulkan (_VK_MAKE_VERSION)
-import Graphics.Vulkan.Core_1_0
-  ( VkAllocationCallbacks
-  , VkInstanceCreateInfo
-  , VkBool32
-  )
 
 import qualified Data.Set as Set
 import qualified Foreign.C.String as Foreign
@@ -33,10 +27,6 @@ import qualified Foreign.Marshal.Alloc as Foreign
 import qualified Foreign.Marshal.Array as Foreign
 import qualified Foreign.Ptr as Foreign
 import qualified Foreign.Storable as Foreign
-import qualified Graphics.Vulkan.Constants as Vk
-import qualified Graphics.Vulkan.Core_1_0 as Vk
-import qualified Graphics.Vulkan.Ext.VK_EXT_debug_utils as Vk
-import qualified Graphics.Vulkan.Marshal as Vk
 import qualified Graphics.UI.GLFW as GLFW
 
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
@@ -106,6 +96,7 @@ import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Rect (VkRect2D(..))
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
+import Graphics.Vulkan.Version (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Viewport (VkViewport(..))
 
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))

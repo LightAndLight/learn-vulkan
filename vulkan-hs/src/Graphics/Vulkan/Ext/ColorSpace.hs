@@ -19,7 +19,7 @@ data VkColorSpaceKHR
   | ADOBERGB_NONLINEAR_EXT
   | PASS_THROUGH_EXT
   | EXTENDED_SRGB_NONLINEAR_EXT
-  -- | DISPLAY_NATIVE_AMD
+  -- DISPLAY_NATIVE_AMD
   deriving (Eq, Ord, Show)
 
 vkColorSpaceKHR :: Vk.VkColorSpaceKHR -> VkColorSpaceKHR

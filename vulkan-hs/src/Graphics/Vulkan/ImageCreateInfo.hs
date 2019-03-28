@@ -13,8 +13,8 @@ data VkImageUsageFlag
   | DepthStencilAttachment
   | TransientAttachment
   | InputAttachment
-  -- | ShadingRateImage
-  -- | FragmentDensityMap
+  -- ShadingRateImage
+  -- FragmentDensityMap
   deriving (Eq, Ord, Show)
 
 vkImageUsageBit ::

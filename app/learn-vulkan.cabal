@@ -31,51 +31,12 @@ custom-setup
 executable learn-vulkan
   main-is:             Main.hs
   other-modules:
-    Graphics.Vulkan.ApplicationInfo
-    Graphics.Vulkan.Device
-    Graphics.Vulkan.DeviceCreateInfo
-    Graphics.Vulkan.DeviceQueueCreateInfo
-    Graphics.Vulkan.Ext
-    Graphics.Vulkan.Ext.ColorSpace
-    Graphics.Vulkan.Ext.DebugUtils
-    Graphics.Vulkan.Ext.Surface
-    Graphics.Vulkan.Ext.Swapchain
-    Graphics.Vulkan.Extent
-    Graphics.Vulkan.Format
-    Graphics.Vulkan.ImageViewCreateInfo
-    Graphics.Vulkan.ImageCreateInfo
-    Graphics.Vulkan.Instance
-    Graphics.Vulkan.InstanceCreateInfo
-    Graphics.Vulkan.ObjectType
-    Graphics.Vulkan.Layer
-    Graphics.Vulkan.Layer.VK_LAYER_LUNARG_standard_validation
-    Graphics.Vulkan.Layer.VK_LAYER_LUNARG_core_validation
-    Graphics.Vulkan.Layer.VK_LAYER_LUNARG_parameter_validation
-    Graphics.Vulkan.Layer.VK_LAYER_LUNARG_object_tracker
-    Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_threading
-    Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
-    Graphics.Vulkan.Offset
-    Graphics.Vulkan.PhysicalDevice
-    Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
-    Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
-    Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
-    Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo
-    Graphics.Vulkan.Pipeline.ViewportStateCreateInfo
-    Graphics.Vulkan.Queue
-    Graphics.Vulkan.Rect
-    Graphics.Vulkan.Result
-    Graphics.Vulkan.SampleCount
-    Graphics.Vulkan.ShaderModule
-    Graphics.Vulkan.ShaderModuleCreateInfo
-    Graphics.Vulkan.Utils
-    Graphics.Vulkan.Viewport
 
   build-depends:       base ^>=4.12.0.0
                      , GLFW-b ^>=3.2
                      , containers ^>= 0.6
                      , managed ^>=1.0
-                     , mmap ^>=0.5
-                     , vulkan-api ^>=1.1
+                     , vulkan-hs ^>=0.1
   extra-libraries:     vulkan
   hs-source-dirs:      src
   default-language:    Haskell2010

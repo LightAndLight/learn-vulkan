@@ -34,7 +34,7 @@ import Graphics.Vulkan.Result (vkResult)
 data VkSwapchainCreateFlagKHR
   = SplitInstanceBindRegions
   | Protected
-  -- | MutableFormat
+  -- MutableFormat
   deriving (Eq, Ord, Show)
 
 vkSwapchainCreateBit ::
