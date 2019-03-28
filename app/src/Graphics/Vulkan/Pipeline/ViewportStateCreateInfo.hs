@@ -1,6 +1,6 @@
 {-# language DataKinds, TypeApplications #-}
 {-# language EmptyCase, EmptyDataDeriving #-}
-module Graphics.Vulkan.PipelineViewportStateCreateInfo where
+module Graphics.Vulkan.Pipeline.ViewportStateCreateInfo where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 

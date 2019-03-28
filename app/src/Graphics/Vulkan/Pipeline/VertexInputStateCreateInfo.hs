@@ -1,7 +1,7 @@
 {-# language DataKinds, TypeApplications #-}
 {-# language DuplicateRecordFields #-}
 {-# language EmptyCase, EmptyDataDeriving #-}
-module Graphics.Vulkan.PipelineVertexInputStateCreateInfo where
+module Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Word (Word32)

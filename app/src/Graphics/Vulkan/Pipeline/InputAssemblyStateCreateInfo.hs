@@ -1,6 +1,6 @@
 {-# language DataKinds, TypeApplications #-}
 {-# language EmptyCase, EmptyDataDeriving #-}
-module Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo where
+module Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 

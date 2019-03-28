@@ -4,7 +4,7 @@
 {-# language FlexibleContexts, FlexibleInstances #-}
 {-# language ScopedTypeVariables #-}
 {-# language TypeApplications #-}
-module Graphics.Vulkan.PipelineShaderStageCreateInfo where
+module Graphics.Vulkan.Pipeline.ShaderStageCreateInfo where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Bits ((.&.), (.|.))

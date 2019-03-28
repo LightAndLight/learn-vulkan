@@ -90,13 +90,13 @@ import Graphics.Vulkan.PhysicalDevice
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
   )
-import Graphics.Vulkan.PipelineShaderStageCreateInfo
+import Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
   ( VkPipelineShaderStageCreateInfo(..)
   , VkShaderStageFlag(..)
   )
-import Graphics.Vulkan.PipelineVertexInputStateCreateInfo (VkPipelineVertexInputStateCreateInfo(..))
-import Graphics.Vulkan.PipelineViewportStateCreateInfo (VkPipelineViewportStateCreateInfo(..))
-import Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo
+import Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo (VkPipelineVertexInputStateCreateInfo(..))
+import Graphics.Vulkan.Pipeline.ViewportStateCreateInfo (VkPipelineViewportStateCreateInfo(..))
+import Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
   (VkPipelineInputAssemblyStateCreateInfo(..), VkPrimitiveTopology(..))
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Rect (VkRect2D(..))

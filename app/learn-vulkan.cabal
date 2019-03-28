@@ -56,10 +56,10 @@ executable learn-vulkan
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
     Graphics.Vulkan.Offset
     Graphics.Vulkan.PhysicalDevice
-    Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo
-    Graphics.Vulkan.PipelineShaderStageCreateInfo
-    Graphics.Vulkan.PipelineVertexInputStateCreateInfo
-    Graphics.Vulkan.PipelineViewportStateCreateInfo
+    Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
+    Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
+    Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo
+    Graphics.Vulkan.Pipeline.ViewportStateCreateInfo
     Graphics.Vulkan.Queue
     Graphics.Vulkan.Rect
     Graphics.Vulkan.Result
