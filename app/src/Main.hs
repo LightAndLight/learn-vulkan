@@ -93,6 +93,9 @@ import Graphics.Vulkan.PipelineShaderStageCreateInfo
   ( VkPipelineShaderStageCreateInfo(..)
   , VkShaderStageFlag(..)
   )
+import Graphics.Vulkan.PipelineVertexInputStateCreateInfo (VkPipelineVertexInputStateCreateInfo(..))
+import Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo
+  (VkPipelineInputAssemblyStateCreateInfo(..), VkPrimitiveTopology(..))
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
@@ -275,6 +278,20 @@ main =
         , module_ = frag
         , pName = "main"
         , pSpecializationInfo = Nothing
+        }
+
+      vertexInputInfo =
+        VkPipelineVertexInputStateCreateInfo
+        { flags = []
+        , pVertexBindingDescriptions = []
+        , pVertexAttributeDescriptions = []
+        }
+
+      inputAssemblyInfo =
+        VkPipelineInputAssemblyStateCreateInfo
+        { flags = []
+        , topology = TriangleList
+        , primitiveRestartEnable = False
         }
 
     mainLoop window
