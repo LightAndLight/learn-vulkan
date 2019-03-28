@@ -99,9 +99,11 @@ import Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
+import Graphics.Vulkan.Viewport (VkViewport(..))
 
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceFormat (VkSurfaceFormatKHR(..))
+import qualified Graphics.Vulkan.Extent as Extent2D (VkExtent2D(..))
 
 mainLoop :: MonadIO m => GLFW.Window -> m ()
 mainLoop window = go
@@ -294,6 +296,16 @@ main =
         , primitiveRestartEnable = False
         }
 
+      viewport =
+        VkViewport
+        { x = 0
+        , y = 0
+        , width = fromIntegral $ Extent2D.width swapExtent
+        , height = fromIntegral $ Extent2D.height swapExtent
+        , minDepth = 0
+        , maxDepth = 1
+        }
+
     mainLoop window
   where
     hints =
@@ -324,16 +336,16 @@ main =
       VkExtent2D
       { width =
           max
-            (width $ minImageExtent scs)
+            (Extent2D.width $ minImageExtent scs)
             (min
-               (width $ maxImageExtent scs)
-               (width $ currentExtent scs))
+               (Extent2D.width $ maxImageExtent scs)
+               (Extent2D.width $ currentExtent scs))
       , height =
           max
-            (height $ minImageExtent scs)
+            (Extent2D.height $ minImageExtent scs)
             (min
-               (height $ maxImageExtent scs)
-               (height $ currentExtent scs))
+               (Extent2D.height $ maxImageExtent scs)
+               (Extent2D.height $ currentExtent scs))
       }
 
     icInfo required =
