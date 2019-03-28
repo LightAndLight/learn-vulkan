@@ -54,11 +54,13 @@ executable learn-vulkan
     Graphics.Vulkan.Layer.VK_LAYER_LUNARG_object_tracker
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_threading
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
+    Graphics.Vulkan.Offset
     Graphics.Vulkan.PhysicalDevice
     Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo
     Graphics.Vulkan.PipelineShaderStageCreateInfo
     Graphics.Vulkan.PipelineVertexInputStateCreateInfo
     Graphics.Vulkan.Queue
+    Graphics.Vulkan.Rect
     Graphics.Vulkan.Result
     Graphics.Vulkan.SampleCount
     Graphics.Vulkan.ShaderModule

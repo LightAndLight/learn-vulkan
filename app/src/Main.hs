@@ -83,6 +83,7 @@ import Graphics.Vulkan.ImageViewCreateInfo
 import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
+import Graphics.Vulkan.Offset (VkOffset2D(..))
 import Graphics.Vulkan.PhysicalDevice
   ( vkEnumeratePhysicalDevices
   , vkGetPhysicalDeviceProperties
@@ -97,6 +98,7 @@ import Graphics.Vulkan.PipelineVertexInputStateCreateInfo (VkPipelineVertexInput
 import Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo
   (VkPipelineInputAssemblyStateCreateInfo(..), VkPrimitiveTopology(..))
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
+import Graphics.Vulkan.Rect (VkRect2D(..))
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
 import Graphics.Vulkan.Viewport (VkViewport(..))
@@ -304,6 +306,12 @@ main =
         , height = fromIntegral $ Extent2D.height swapExtent
         , minDepth = 0
         , maxDepth = 1
+        }
+
+      scissor =
+        VkRect2D
+        { offset = VkOffset2D 0 0
+        , extent = swapExtent
         }
 
     mainLoop window
