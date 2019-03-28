@@ -2,3 +2,5 @@ dist/
 dist-newstyle/
 .ghc.*
 result
+*.spv
+cabal.project.local
