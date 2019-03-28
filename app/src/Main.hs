@@ -80,6 +80,9 @@ import Graphics.Vulkan.PhysicalDevice
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
   )
+import Graphics.Vulkan.Pipeline.MultisampleStateCreateInfo
+  ( VkPipelineMultisampleStateCreateInfo(..)
+  )
 import Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
   ( VkPipelineRasterizationStateCreateInfo(..)
   , VkFrontFace(..), VkCullModeFlag(..), VkPolygonMode(..)
@@ -95,6 +98,7 @@ import Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Rect (VkRect2D(..))
 import Graphics.Vulkan.Result (vkResult)
+import Graphics.Vulkan.SampleCount (VkSampleCount(..))
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
 import Graphics.Vulkan.Version (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Viewport (VkViewport(..))
@@ -328,6 +332,17 @@ main =
         , depthBiasClamp = 0
         , depthBiasSlopeFactor = 0
         , lineWidth = 1
+        }
+
+      multisampleInfo =
+        VkPipelineMultisampleStateCreateInfo
+        { flags = []
+        , rasterizationSamples = SC1
+        , sampleShadingEnable = False
+        , minSampleShading = 1
+        , pSampleMask = []
+        , alphaToCoverageEnable = False
+        , alphaToOneEnable = False
         }
 
     mainLoop window

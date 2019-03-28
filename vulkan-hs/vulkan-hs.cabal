@@ -43,6 +43,7 @@ library
     Graphics.Vulkan.Offset
     Graphics.Vulkan.PhysicalDevice
     Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
+    Graphics.Vulkan.Pipeline.MultisampleStateCreateInfo
     Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
     Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
     Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo
