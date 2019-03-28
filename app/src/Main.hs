@@ -95,6 +95,7 @@ import Graphics.Vulkan.PipelineShaderStageCreateInfo
   , VkShaderStageFlag(..)
   )
 import Graphics.Vulkan.PipelineVertexInputStateCreateInfo (VkPipelineVertexInputStateCreateInfo(..))
+import Graphics.Vulkan.PipelineViewportStateCreateInfo (VkPipelineViewportStateCreateInfo(..))
 import Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo
   (VkPipelineInputAssemblyStateCreateInfo(..), VkPrimitiveTopology(..))
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
@@ -298,20 +299,25 @@ main =
         , primitiveRestartEnable = False
         }
 
-      viewport =
-        VkViewport
-        { x = 0
-        , y = 0
-        , width = fromIntegral $ Extent2D.width swapExtent
-        , height = fromIntegral $ Extent2D.height swapExtent
-        , minDepth = 0
-        , maxDepth = 1
-        }
-
-      scissor =
-        VkRect2D
-        { offset = VkOffset2D 0 0
-        , extent = swapExtent
+      viewportInfo =
+        VkPipelineViewportStateCreateInfo
+        { flags = []
+        , pViewports =
+          [ VkViewport
+            { x = 0
+            , y = 0
+            , width = fromIntegral $ Extent2D.width swapExtent
+            , height = fromIntegral $ Extent2D.height swapExtent
+            , minDepth = 0
+            , maxDepth = 1
+            }
+          ]
+        , pScissors =
+          [ VkRect2D
+            { offset = VkOffset2D 0 0
+            , extent = swapExtent
+            }
+          ]
         }
 
     mainLoop window

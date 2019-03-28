@@ -59,6 +59,7 @@ executable learn-vulkan
     Graphics.Vulkan.PipelineInputAssemblyStateCreateInfo
     Graphics.Vulkan.PipelineShaderStageCreateInfo
     Graphics.Vulkan.PipelineVertexInputStateCreateInfo
+    Graphics.Vulkan.PipelineViewportStateCreateInfo
     Graphics.Vulkan.Queue
     Graphics.Vulkan.Rect
     Graphics.Vulkan.Result
