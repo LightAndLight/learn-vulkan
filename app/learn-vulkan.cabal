@@ -58,6 +58,7 @@ executable learn-vulkan
     Graphics.Vulkan.Queue
     Graphics.Vulkan.Result
     Graphics.Vulkan.SampleCount
+    Graphics.Vulkan.ShaderModule
     Graphics.Vulkan.ShaderModuleCreateInfo
     Graphics.Vulkan.Utils
 

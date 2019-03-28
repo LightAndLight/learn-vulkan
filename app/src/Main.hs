@@ -91,6 +91,7 @@ import Graphics.Vulkan.PhysicalDevice
   )
 import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
 import Graphics.Vulkan.Result (vkResult)
+import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
 
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceFormat (VkSurfaceFormatKHR(..))
@@ -247,6 +248,9 @@ main =
       traverse
         (\i -> vkCreateImageView device (imageViewCreateInfo i) Foreign.nullPtr)
         images
+
+    vert <- shaderModuleFromFile "app/shaders/vert.spv" [] device Foreign.nullPtr
+    frag <- shaderModuleFromFile "app/shaders/frag.spv" [] device Foreign.nullPtr
 
     mainLoop window
   where
