@@ -90,6 +90,10 @@ import Graphics.Vulkan.PhysicalDevice
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
   )
+import Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
+  ( VkPipelineRasterizationStateCreateInfo(..)
+  , VkFrontFace(..), VkCullModeFlag(..), VkPolygonMode(..)
+  )
 import Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
   ( VkPipelineShaderStageCreateInfo(..)
   , VkShaderStageFlag(..)
@@ -318,6 +322,21 @@ main =
             , extent = swapExtent
             }
           ]
+        }
+
+      rasterizationInfo =
+        VkPipelineRasterizationStateCreateInfo
+        { flags = []
+        , depthClampEnable = False
+        , rasterizerDiscardEnable = False
+        , polygonMode = Fill
+        , cullMode = [Back]
+        , frontFace = Clockwise
+        , depthBiasEnable = False
+        , depthBiasConstantFactor = 0
+        , depthBiasClamp = 0
+        , depthBiasSlopeFactor = 0
+        , lineWidth = 1
         }
 
     mainLoop window
