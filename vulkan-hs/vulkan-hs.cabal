@@ -42,6 +42,7 @@ library
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
     Graphics.Vulkan.Offset
     Graphics.Vulkan.PhysicalDevice
+    Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
     Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
     Graphics.Vulkan.Pipeline.MultisampleStateCreateInfo
     Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
