@@ -44,6 +44,7 @@ library
     Graphics.Vulkan.PhysicalDevice
     Graphics.Vulkan.Pipeline.ColorBlendStateCreateInfo
     Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
+    Graphics.Vulkan.Pipeline.DynamicStateCreateInfo
     Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
     Graphics.Vulkan.Pipeline.MultisampleStateCreateInfo
     Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
