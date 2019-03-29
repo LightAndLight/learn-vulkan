@@ -46,6 +46,8 @@ library
     Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
     Graphics.Vulkan.Pipeline.DynamicStateCreateInfo
     Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
+    Graphics.Vulkan.Pipeline.Layout
+    Graphics.Vulkan.Pipeline.LayoutCreateInfo
     Graphics.Vulkan.Pipeline.MultisampleStateCreateInfo
     Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
     Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
@@ -57,6 +59,7 @@ library
     Graphics.Vulkan.SampleCount
     Graphics.Vulkan.ShaderModule
     Graphics.Vulkan.ShaderModuleCreateInfo
+    Graphics.Vulkan.ShaderStage
     Graphics.Vulkan.Utils
     Graphics.Vulkan.Version
     Graphics.Vulkan.Viewport

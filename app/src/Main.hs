@@ -87,6 +87,10 @@ import Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
 import Graphics.Vulkan.Pipeline.ColorBlendStateCreateInfo
   ( VkPipelineColorBlendStateCreateInfo(..), VkLogicOp(..)
   )
+import Graphics.Vulkan.Pipeline.Layout (vkCreatePipelineLayout)
+import Graphics.Vulkan.Pipeline.LayoutCreateInfo
+  ( VkPipelineLayoutCreateInfo(..)
+  )
 import Graphics.Vulkan.Pipeline.MultisampleStateCreateInfo
   ( VkPipelineMultisampleStateCreateInfo(..)
   )
@@ -96,7 +100,6 @@ import Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
   )
 import Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
   ( VkPipelineShaderStageCreateInfo(..)
-  , VkShaderStageFlag(..)
   )
 import Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo (VkPipelineVertexInputStateCreateInfo(..))
 import Graphics.Vulkan.Pipeline.ViewportStateCreateInfo (VkPipelineViewportStateCreateInfo(..))
@@ -107,6 +110,7 @@ import Graphics.Vulkan.Rect (VkRect2D(..))
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.SampleCount (VkSampleCount(..))
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
+import Graphics.Vulkan.ShaderStage (VkShaderStageFlag(..))
 import Graphics.Vulkan.Version (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Viewport (VkViewport(..))
 
@@ -371,6 +375,15 @@ main =
           ]
         , blendConstants = (0, 0, 0, 0)
         }
+
+      layoutInfo =
+        VkPipelineLayoutCreateInfo
+        { flags = []
+        , pSetLayouts = []
+        , pPushConstantRanges = []
+        }
+
+    layout <- vkCreatePipelineLayout device layoutInfo Foreign.nullPtr
 
     mainLoop window
   where
