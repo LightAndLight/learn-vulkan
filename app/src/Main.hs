@@ -105,8 +105,16 @@ import Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo (VkPipelineVertexInpu
 import Graphics.Vulkan.Pipeline.ViewportStateCreateInfo (VkPipelineViewportStateCreateInfo(..))
 import Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
   (VkPipelineInputAssemblyStateCreateInfo(..), VkPrimitiveTopology(..))
-import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..), VkQueueType(..))
+import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..))
 import Graphics.Vulkan.Rect (VkRect2D(..))
+import Graphics.Vulkan.RenderPass (vkCreateRenderPass)
+import Graphics.Vulkan.RenderPassCreateInfo
+  ( VkRenderPassCreateInfo(..)
+  , VkAttachmentDescription(..)
+  , VkSubpassDescription(..)
+  , VkAttachmentReference(..)
+  , VkAttachmentStoreOp(..)
+  )
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.SampleCount (VkSampleCount(..))
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
@@ -117,6 +125,11 @@ import Graphics.Vulkan.Viewport (VkViewport(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceFormat (VkSurfaceFormatKHR(..))
 import qualified Graphics.Vulkan.Extent as Extent2D (VkExtent2D(..))
+import qualified Graphics.Vulkan.ImageLayout as ImageLayout (VkImageLayout(..))
+import qualified Graphics.Vulkan.Ext.DebugUtils as MessageType (VkDebugUtilsMessageType(..))
+import qualified Graphics.Vulkan.RenderPassCreateInfo as LoadOp (VkAttachmentLoadOp(..))
+import qualified Graphics.Vulkan.RenderPassCreateInfo as BindPoint (VkPipelineBindPoint(..))
+import qualified Graphics.Vulkan.Queue as QueueType (VkQueueType(..))
 
 mainLoop :: MonadIO m => GLFW.Window -> m ()
 mainLoop window = go
@@ -180,7 +193,7 @@ main =
     qfProps <- vkGetPhysicalDeviceQueueFamilyProperties physicalDevice
     graphicsQfIx <-
       maybe (error "vulkan no suitable queue families") (pure . fromIntegral) $
-      findIndex (elem Graphics . queueFlags) qfProps
+      findIndex (elem QueueType.Graphics . queueFlags) qfProps
     presentQfIx <-
       maybe (error "vulkan no suitable queue families") (pure . fromIntegral) =<<
       ifindIndexM
@@ -273,6 +286,54 @@ main =
 
     vert <- shaderModuleFromFile "app/shaders/vert.spv" [] device Foreign.nullPtr
     frag <- shaderModuleFromFile "app/shaders/frag.spv" [] device Foreign.nullPtr
+
+    let
+      layoutInfo =
+        VkPipelineLayoutCreateInfo
+        { flags = []
+        , pSetLayouts = []
+        , pPushConstantRanges = []
+        }
+
+    layout <- vkCreatePipelineLayout device layoutInfo Foreign.nullPtr
+
+    let
+      renderPassInfo =
+        VkRenderPassCreateInfo
+        { flags = []
+        , pAttachments =
+          [ VkAttachmentDescription
+            { flags = []
+            , format = SurfaceFormat.format surfaceFormat
+            , samples = SC1
+            , loadOp = LoadOp.Clear
+            , storeOp = Store
+            , stencilLoadOp = LoadOp.LoadOpDontCare
+            , stencilStoreOp = StoreOpDontCare
+            , initialLayout = ImageLayout.Undefined
+            , finalLayout = ImageLayout.PresentSrcKHR
+            }
+          ]
+        , pSubpasses =
+          [ VkSubpassDescription
+            { flags = []
+            , pipelineBindPoint = BindPoint.Graphics
+            , pInputAttachments = []
+            , pColorAttachments =
+              [ VkAttachmentReference
+                { attachment = Just 0
+                , layout = ImageLayout.ColorAttachmentOptimal
+                }
+              ]
+            , pResolveAttachments = Nothing
+            , pDepthStencilAttachment = Nothing
+            , pPreserveAttachments = []
+            }
+          ]
+        , pDependencies = []
+        }
+
+    renderPass <- vkCreateRenderPass device renderPassInfo Foreign.nullPtr
 
     let
       vertShaderStageInfo :: VkPipelineShaderStageCreateInfo '[]
@@ -376,14 +437,6 @@ main =
         , blendConstants = (0, 0, 0, 0)
         }
 
-      layoutInfo =
-        VkPipelineLayoutCreateInfo
-        { flags = []
-        , pSetLayouts = []
-        , pPushConstantRanges = []
-        }
-
-    layout <- vkCreatePipelineLayout device layoutInfo Foreign.nullPtr
 
     mainLoop window
   where
@@ -444,7 +497,11 @@ main =
     messengerCreateInfo =
       VkDebugUtilsMessengerCreateInfoEXT
       { messageSeverity = [Verbose, Warning, Error]
-      , messageType = [General, Validation, Performance]
+      , messageType =
+        [ MessageType.General
+        , MessageType.Validation
+        , MessageType.Performance
+        ]
       , pfnUserCallback = \sev types cbData userData -> do
           putStrLn "debug callback:"
           print sev

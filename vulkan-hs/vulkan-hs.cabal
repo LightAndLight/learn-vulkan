@@ -17,7 +17,9 @@ extra-source-files:  CHANGELOG.md
 
 library
   exposed-modules:
+    Graphics.Vulkan.Access
     Graphics.Vulkan.ApplicationInfo
+    Graphics.Vulkan.Dependency
     Graphics.Vulkan.Device
     Graphics.Vulkan.DeviceCreateInfo
     Graphics.Vulkan.DeviceQueueCreateInfo
@@ -28,8 +30,9 @@ library
     Graphics.Vulkan.Ext.Swapchain
     Graphics.Vulkan.Extent
     Graphics.Vulkan.Format
-    Graphics.Vulkan.ImageViewCreateInfo
+    Graphics.Vulkan.ImageLayout
     Graphics.Vulkan.ImageCreateInfo
+    Graphics.Vulkan.ImageViewCreateInfo
     Graphics.Vulkan.Instance
     Graphics.Vulkan.InstanceCreateInfo
     Graphics.Vulkan.ObjectType
@@ -53,8 +56,11 @@ library
     Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
     Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo
     Graphics.Vulkan.Pipeline.ViewportStateCreateInfo
+    Graphics.Vulkan.PipelineStage
     Graphics.Vulkan.Queue
     Graphics.Vulkan.Rect
+    Graphics.Vulkan.RenderPass
+    Graphics.Vulkan.RenderPassCreateInfo
     Graphics.Vulkan.Result
     Graphics.Vulkan.SampleCount
     Graphics.Vulkan.ShaderModule
