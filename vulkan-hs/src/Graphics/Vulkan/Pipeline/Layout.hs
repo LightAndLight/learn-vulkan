@@ -16,6 +16,7 @@ import Graphics.Vulkan.Pipeline.LayoutCreateInfo
   ( VkPipelineLayoutCreateInfo
   , unVkPipelineLayoutCreateInfo
   )
+import Graphics.Vulkan.Result (vkResult)
 
 vkCreatePipelineLayout ::
   (MonadManaged m, MonadIO m) =>
@@ -26,7 +27,7 @@ vkCreatePipelineLayout ::
 vkCreatePipelineLayout d info cbs = do
   info' <- unVkPipelineLayoutCreateInfo info
   layoutPtr <- using $ managed Foreign.alloca
-  liftIO $ Vk.vkCreatePipelineLayout d (Vk.unsafePtr info') cbs layoutPtr
+  liftIO $ vkResult =<< Vk.vkCreatePipelineLayout d (Vk.unsafePtr info') cbs layoutPtr
   using $ managed (bracket
     (Foreign.peek layoutPtr)
     (\l -> Vk.vkDestroyPipelineLayout d l cbs))

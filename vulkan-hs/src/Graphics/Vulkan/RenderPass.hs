@@ -11,6 +11,7 @@ import qualified Graphics.Vulkan.Core_1_0 as Vk
 
 import Graphics.Vulkan.RenderPassCreateInfo
   (VkRenderPassCreateInfo, unVkRenderPassCreateInfo)
+import Graphics.Vulkan.Result (vkResult)
 
 vkCreateRenderPass ::
   (MonadManaged m, MonadIO m) =>
@@ -21,7 +22,7 @@ vkCreateRenderPass ::
 vkCreateRenderPass d info cbs = do
   rpPtr <- using $ managed Foreign.alloca
   info' <- unVkRenderPassCreateInfo info
-  liftIO $ Vk.vkCreateRenderPass d (Vk.unsafePtr info') cbs rpPtr
+  liftIO $ vkResult =<< Vk.vkCreateRenderPass d (Vk.unsafePtr info') cbs rpPtr
   using $ managed (bracket
     (Foreign.peek rpPtr)
     (\rp -> Vk.vkDestroyRenderPass d rp cbs))

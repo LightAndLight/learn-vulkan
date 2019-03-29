@@ -17,6 +17,8 @@ import qualified Foreign.Storable as Foreign
 import qualified Graphics.Vulkan.Ext.VK_KHR_surface as Vk
 import qualified Graphics.Vulkan.Ext.VK_KHR_swapchain as Vk
 
+import Graphics.Vulkan.Result (vkResult)
+
 import Graphics.Vulkan.ImageCreateInfo
   ( VkImageUsageFlag, VkSharingMode
   , unVkImageUsageBits, unVkSharingMode
@@ -128,7 +130,7 @@ vkCreateSwapchainKHR d info cbs = do
   scPtr <- using $ managed Foreign.alloca
   liftIO $ do
     info' <- unVkSwapchainCreateInfoKHR info
-    Vk.vkCreateSwapchainKHR d (Vk.unsafePtr info') cbs scPtr
+    vkResult =<< Vk.vkCreateSwapchainKHR d (Vk.unsafePtr info') cbs scPtr
   using $ managed (bracket
     (Foreign.peek scPtr)
     (\sc -> Vk.vkDestroySwapchainKHR d sc cbs))

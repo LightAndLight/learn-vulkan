@@ -17,8 +17,12 @@ extra-source-files:  CHANGELOG.md
 
 library
   exposed-modules:
+    Data.Constraint.All
+    Data.Some
+    Data.Type.Function
     Graphics.Vulkan.Access
     Graphics.Vulkan.ApplicationInfo
+    Graphics.Vulkan.CompareOp
     Graphics.Vulkan.Dependency
     Graphics.Vulkan.Device
     Graphics.Vulkan.DeviceCreateInfo
@@ -30,6 +34,8 @@ library
     Graphics.Vulkan.Ext.Swapchain
     Graphics.Vulkan.Extent
     Graphics.Vulkan.Format
+    Graphics.Vulkan.GraphicsPipeline
+    Graphics.Vulkan.GraphicsPipelineCreateInfo
     Graphics.Vulkan.ImageLayout
     Graphics.Vulkan.ImageCreateInfo
     Graphics.Vulkan.ImageViewCreateInfo
@@ -47,6 +53,7 @@ library
     Graphics.Vulkan.PhysicalDevice
     Graphics.Vulkan.Pipeline.ColorBlendStateCreateInfo
     Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
+    Graphics.Vulkan.Pipeline.DepthStencilStateCreateInfo
     Graphics.Vulkan.Pipeline.DynamicStateCreateInfo
     Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
     Graphics.Vulkan.Pipeline.Layout
@@ -54,6 +61,7 @@ library
     Graphics.Vulkan.Pipeline.MultisampleStateCreateInfo
     Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
     Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
+    Graphics.Vulkan.Pipeline.TessellationStateCreateInfo
     Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo
     Graphics.Vulkan.Pipeline.ViewportStateCreateInfo
     Graphics.Vulkan.PipelineStage

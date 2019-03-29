@@ -29,6 +29,7 @@ import qualified Foreign.Ptr as Foreign
 import qualified Foreign.Storable as Foreign
 import qualified Graphics.UI.GLFW as GLFW
 
+import Data.Some (Some(..))
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
 import Graphics.Vulkan.Device (vkCreateDevice, vkGetDeviceQueue)
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
@@ -64,6 +65,8 @@ import Graphics.Vulkan.Ext.Swapchain
   )
 import Graphics.Vulkan.Extent (VkExtent2D(..))
 import Graphics.Vulkan.Format (VkFormat(..))
+import Graphics.Vulkan.GraphicsPipelineCreateInfo (VkGraphicsPipelineCreateInfo(..))
+import Graphics.Vulkan.GraphicsPipeline (vkCreateGraphicsPipelines)
 import Graphics.Vulkan.ImageCreateInfo (VkSharingMode(..), VkImageUsageFlag(..))
 import Graphics.Vulkan.ImageViewCreateInfo
   ( VkImageViewCreateInfo(..), VkImageSubresourceRange(..), VkComponentMapping(..)
@@ -127,6 +130,7 @@ import qualified Graphics.Vulkan.Ext.Surface as SurfaceFormat (VkSurfaceFormatKH
 import qualified Graphics.Vulkan.Extent as Extent2D (VkExtent2D(..))
 import qualified Graphics.Vulkan.ImageLayout as ImageLayout (VkImageLayout(..))
 import qualified Graphics.Vulkan.Ext.DebugUtils as MessageType (VkDebugUtilsMessageType(..))
+import qualified Graphics.Vulkan.GraphicsPipelineCreateInfo as Stages (Stages(..))
 import qualified Graphics.Vulkan.RenderPassCreateInfo as LoadOp (VkAttachmentLoadOp(..))
 import qualified Graphics.Vulkan.RenderPassCreateInfo as BindPoint (VkPipelineBindPoint(..))
 import qualified Graphics.Vulkan.Queue as QueueType (VkQueueType(..))
@@ -295,7 +299,7 @@ main =
         , pPushConstantRanges = []
         }
 
-    layout <- vkCreatePipelineLayout device layoutInfo Foreign.nullPtr
+    pipelineLayout <- vkCreatePipelineLayout device layoutInfo Foreign.nullPtr
 
     let
       renderPassInfo =
@@ -437,6 +441,30 @@ main =
         , blendConstants = (0, 0, 0, 0)
         }
 
+      pipelineInfo =
+        VkGraphicsPipelineCreateInfo
+        { flags = []
+        , pStages =
+          Stages.Cons vertShaderStageInfo $
+          Stages.Cons fragShaderStageInfo $
+          Stages.Nil
+        , pVertexInputState = Just vertexInputInfo
+        , pInputAssemblyState = Just inputAssemblyInfo
+        , pTessellationState = Nothing
+        , pViewportState = Just viewportInfo
+        , pRasterizationState = Just rasterizationInfo
+        , pMultisampleState = Just multisampleInfo
+        , pDepthStencilState = Nothing
+        , pColorBlendState = Just colorBlendInfo
+        , pDynamicState = Nothing
+        , layout = pipelineLayout
+        , renderPass = renderPass
+        , subpass = 0
+        , basePipelineHandle = Nothing
+        , basePipelineIndex = Nothing
+        }
+
+    pipelines <- vkCreateGraphicsPipelines device Nothing [Some pipelineInfo] Foreign.nullPtr
 
     mainLoop window
   where
