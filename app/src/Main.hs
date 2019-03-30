@@ -65,6 +65,8 @@ import Graphics.Vulkan.Ext.Swapchain
   )
 import Graphics.Vulkan.Extent (VkExtent2D(..))
 import Graphics.Vulkan.Format (VkFormat(..))
+import Graphics.Vulkan.Framebuffer (vkCreateFramebuffer)
+import Graphics.Vulkan.FramebufferCreateInfo (VkFramebufferCreateInfo(..))
 import Graphics.Vulkan.GraphicsPipelineCreateInfo (VkGraphicsPipelineCreateInfo(..))
 import Graphics.Vulkan.GraphicsPipeline (vkCreateGraphicsPipelines)
 import Graphics.Vulkan.ImageCreateInfo (VkSharingMode(..), VkImageUsageFlag(..))
@@ -465,6 +467,19 @@ main =
         }
 
     pipelines <- vkCreateGraphicsPipelines device Nothing [Some pipelineInfo] Foreign.nullPtr
+
+    framebuffers <- for imageViews $ \imageView -> do
+      let
+        framebufferInfo =
+          VkFramebufferCreateInfo
+          { flags = []
+          , renderPass = renderPass
+          , pAttachments = [imageView]
+          , width = Extent2D.width swapExtent
+          , height = Extent2D.height swapExtent
+          , layers = 1
+          }
+      vkCreateFramebuffer device framebufferInfo Foreign.nullPtr
 
     mainLoop window
   where
