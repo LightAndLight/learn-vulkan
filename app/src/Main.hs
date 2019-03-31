@@ -37,6 +37,7 @@ import Graphics.Vulkan.CommandBuffer
   )
 import Graphics.Vulkan.CommandPool (vkCreateCommandPool)
 import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
+import Graphics.Vulkan.Command.BindPipeline (vkCmdBindPipeline)
 import Graphics.Vulkan.Command.Draw (vkCmdDraw)
 import Graphics.Vulkan.Command.RenderPass (VkRenderPassBeginInfo(..), withCmdRenderPass)
 import Graphics.Vulkan.Device (vkCreateDevice, vkGetDeviceQueue)
@@ -143,7 +144,7 @@ import qualified Graphics.Vulkan.ImageLayout as ImageLayout (VkImageLayout(..))
 import qualified Graphics.Vulkan.Ext.DebugUtils as MessageType (VkDebugUtilsMessageType(..))
 import qualified Graphics.Vulkan.GraphicsPipelineCreateInfo as Stages (Stages(..))
 import qualified Graphics.Vulkan.RenderPassCreateInfo as LoadOp (VkAttachmentLoadOp(..))
-import qualified Graphics.Vulkan.RenderPassCreateInfo as BindPoint (VkPipelineBindPoint(..))
+import qualified Graphics.Vulkan.Pipeline.BindPoint as BindPoint (VkPipelineBindPoint(..))
 import qualified Graphics.Vulkan.SubpassContents as Subpass (VkSubpassContents(..))
 import qualified Graphics.Vulkan.Queue as QueueType (VkQueueType(..))
 
@@ -476,7 +477,9 @@ main =
         , basePipelineIndex = Nothing
         }
 
-    pipelines <- vkCreateGraphicsPipelines device Nothing [Some pipelineInfo] Foreign.nullPtr
+    pipeline <-
+      fmap (\case; [] -> error "vulkan no graphics pipeline"; p:_ -> p) $
+      vkCreateGraphicsPipelines device Nothing [Some pipelineInfo] Foreign.nullPtr
 
     framebuffers <- for imageViews $ \imageView -> do
       let
@@ -527,8 +530,9 @@ main =
           }
 
       withCommandBuffer cmdBuf beginInfo $
-        withCmdRenderPass cmdBuf renderPassBeginInfo Subpass.Inline $
-        vkCmdDraw cmdBuf 3 1 0 0
+        withCmdRenderPass cmdBuf renderPassBeginInfo Subpass.Inline $ do
+          vkCmdBindPipeline cmdBuf BindPoint.Graphics pipeline
+          vkCmdDraw cmdBuf 3 1 0 0
 
     mainLoop window
   where

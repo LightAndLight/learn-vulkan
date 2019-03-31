@@ -12,7 +12,6 @@ import Unsafe.Coerce (unsafeCoerce)
 import qualified Foreign
 import qualified Graphics.Vulkan.Constants as Vk
 import qualified Graphics.Vulkan.Core_1_0 as Vk
--- import qualified Graphics.Vulkan.Ext.VK_NV_ray_tracing as Vk
 import qualified Graphics.Vulkan.Ext.VK_NVX_multiview_per_view_attributes as Vk
 import qualified Graphics.Vulkan.Marshal as Vk
 
@@ -21,6 +20,7 @@ import Graphics.Vulkan.Dependency (VkDependencyFlag, unVkDependencyBits)
 import Graphics.Vulkan.Format (VkFormat, unVkFormat)
 import Graphics.Vulkan.ImageLayout (VkImageLayout, unVkImageLayout)
 import Graphics.Vulkan.PipelineStage (VkPipelineStageFlag, unVkPipelineStageBits)
+import Graphics.Vulkan.Pipeline.BindPoint (VkPipelineBindPoint, unVkPipelineBindPoint)
 import Graphics.Vulkan.SampleCount (VkSampleCount, unVkSampleCountBit)
 
 data VkRenderPassCreateFlag
@@ -125,21 +125,6 @@ unVkSubpassDescriptionBits ::
   [VkSubpassDescriptionFlag] ->
   Vk.VkSubpassDescriptionFlags
 unVkSubpassDescriptionBits = foldr (\a b -> unVkSubpassDescriptionBit a .|. b) 0
-
-data VkPipelineBindPoint
-  = Graphics
-  | Compute
-  -- RayTracingNV
-  deriving (Eq, Ord, Show)
-
-unVkPipelineBindPoint ::
-  VkPipelineBindPoint ->
-  Vk.VkPipelineBindPoint
-unVkPipelineBindPoint a =
-  case a of
-    Graphics -> Vk.VK_PIPELINE_BIND_POINT_GRAPHICS
-    Compute -> Vk.VK_PIPELINE_BIND_POINT_COMPUTE
-    -- RayTracingNV -> Vk.VK_PIPELINE_BIND_POINT_RAY_TRACING_NV
 
 data VkAttachmentReference
   = VkAttachmentReference

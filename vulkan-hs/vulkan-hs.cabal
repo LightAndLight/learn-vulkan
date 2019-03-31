@@ -26,6 +26,7 @@ library
     Graphics.Vulkan.CommandBuffer
     Graphics.Vulkan.CommandPool
     Graphics.Vulkan.CommandPoolCreateInfo
+    Graphics.Vulkan.Command.BindPipeline
     Graphics.Vulkan.Command.Draw
     Graphics.Vulkan.Command.RenderPass
     Graphics.Vulkan.CompareOp
@@ -59,6 +60,7 @@ library
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
     Graphics.Vulkan.Offset
     Graphics.Vulkan.PhysicalDevice
+    Graphics.Vulkan.Pipeline.BindPoint
     Graphics.Vulkan.Pipeline.ColorBlendStateCreateInfo
     Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
     Graphics.Vulkan.Pipeline.DepthStencilStateCreateInfo
