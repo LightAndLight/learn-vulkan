@@ -83,6 +83,7 @@ library
     Graphics.Vulkan.RenderPassCreateInfo
     Graphics.Vulkan.Result
     Graphics.Vulkan.SampleCount
+    Graphics.Vulkan.Semaphore
     Graphics.Vulkan.ShaderModule
     Graphics.Vulkan.ShaderModuleCreateInfo
     Graphics.Vulkan.ShaderStage

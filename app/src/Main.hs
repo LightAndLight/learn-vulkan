@@ -131,6 +131,7 @@ import Graphics.Vulkan.RenderPassCreateInfo
   )
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.SampleCount (VkSampleCount(..))
+import Graphics.Vulkan.Semaphore (VkSemaphoreCreateInfo(..), vkCreateSemaphore)
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
 import Graphics.Vulkan.ShaderStage (VkShaderStageFlag(..))
 import Graphics.Vulkan.Version (_VK_MAKE_VERSION)
@@ -533,6 +534,9 @@ main =
         withCmdRenderPass cmdBuf renderPassBeginInfo Subpass.Inline $ do
           vkCmdBindPipeline cmdBuf BindPoint.Graphics pipeline
           vkCmdDraw cmdBuf 3 1 0 0
+
+    renderFinishedSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
+    imageAvailableSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
 
     mainLoop window
   where
