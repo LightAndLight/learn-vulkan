@@ -12,7 +12,7 @@ import Control.Exception (Exception(..), bracket, throwIO)
 import Control.Monad (unless)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
-import Data.Foldable (fold, traverse_)
+import Data.Foldable (fold, for_, traverse_)
 import Data.Int (Int32, Int64)
 import Data.List (findIndex)
 import Data.Maybe (fromMaybe)
@@ -32,9 +32,12 @@ import qualified Graphics.UI.GLFW as GLFW
 import Data.Some (Some(..))
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
 import Graphics.Vulkan.CommandBuffer
-  (VkCommandBufferAllocateInfo(..), VkCommandBufferLevel(..), vkAllocateCommandBuffers)
+  ( VkCommandBufferAllocateInfo(..), VkCommandBufferLevel(..), vkAllocateCommandBuffers
+  , VkCommandBufferBeginInfo(..), VkCommandBufferUsageFlag(..), vkBeginCommandBuffer
+  )
 import Graphics.Vulkan.CommandPool (vkCreateCommandPool)
 import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
+import Graphics.Vulkan.Command.RenderPass (VkRenderPassBeginInfo(..), vkCmdBeginRenderPass)
 import Graphics.Vulkan.Device (vkCreateDevice, vkGetDeviceQueue)
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
@@ -131,6 +134,7 @@ import Graphics.Vulkan.ShaderStage (VkShaderStageFlag(..))
 import Graphics.Vulkan.Version (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Viewport (VkViewport(..))
 
+import qualified Graphics.Vulkan.ClearValue as ClearValue (VkClearValue(..), VkClearColorValue(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceFormat (VkSurfaceFormatKHR(..))
 import qualified Graphics.Vulkan.Extent as Extent2D (VkExtent2D(..))
@@ -139,6 +143,7 @@ import qualified Graphics.Vulkan.Ext.DebugUtils as MessageType (VkDebugUtilsMess
 import qualified Graphics.Vulkan.GraphicsPipelineCreateInfo as Stages (Stages(..))
 import qualified Graphics.Vulkan.RenderPassCreateInfo as LoadOp (VkAttachmentLoadOp(..))
 import qualified Graphics.Vulkan.RenderPassCreateInfo as BindPoint (VkPipelineBindPoint(..))
+import qualified Graphics.Vulkan.SubpassContents as Subpass (VkSubpassContents(..))
 import qualified Graphics.Vulkan.Queue as QueueType (VkQueueType(..))
 
 mainLoop :: MonadIO m => GLFW.Window -> m ()
@@ -503,6 +508,26 @@ main =
         }
 
     commandBuffers <- vkAllocateCommandBuffers device commandBufferInfo
+
+    for_ (zip commandBuffers framebuffers) $ \(cmdBuf, fbuf) -> do
+      let
+        beginInfo =
+          VkCommandBufferBeginInfo
+          { flags = [SimultaneousUse]
+          , pInheritanceInfo = Nothing
+          }
+      vkBeginCommandBuffer cmdBuf beginInfo
+
+      let
+        renderPassBeginInfo =
+          VkRenderPassBeginInfo
+          { renderPass = renderPass
+          , framebuffer = fbuf
+          , renderArea = VkRect2D (VkOffset2D 0 0) swapExtent
+          , pClearValues = [ClearValue.Color (ClearValue.Float32 0 0 0 1)]
+          }
+
+      vkCmdBeginRenderPass cmdBuf renderPassBeginInfo Subpass.Inline
 
     mainLoop window
   where

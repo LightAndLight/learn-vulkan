@@ -22,9 +22,11 @@ library
     Data.Type.Function
     Graphics.Vulkan.Access
     Graphics.Vulkan.ApplicationInfo
+    Graphics.Vulkan.ClearValue
     Graphics.Vulkan.CommandBuffer
     Graphics.Vulkan.CommandPool
     Graphics.Vulkan.CommandPoolCreateInfo
+    Graphics.Vulkan.Command.RenderPass
     Graphics.Vulkan.CompareOp
     Graphics.Vulkan.Dependency
     Graphics.Vulkan.Device
@@ -70,6 +72,8 @@ library
     Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo
     Graphics.Vulkan.Pipeline.ViewportStateCreateInfo
     Graphics.Vulkan.PipelineStage
+    Graphics.Vulkan.Query.Control
+    Graphics.Vulkan.Query.PipelineStatistic
     Graphics.Vulkan.Queue
     Graphics.Vulkan.Rect
     Graphics.Vulkan.RenderPass
@@ -79,6 +83,7 @@ library
     Graphics.Vulkan.ShaderModule
     Graphics.Vulkan.ShaderModuleCreateInfo
     Graphics.Vulkan.ShaderStage
+    Graphics.Vulkan.SubpassContents
     Graphics.Vulkan.Utils
     Graphics.Vulkan.Version
     Graphics.Vulkan.Viewport
