@@ -2,6 +2,7 @@ module Graphics.Vulkan.Device
   ( Vk.VkDevice
   , vkCreateDevice
   , vkGetDeviceQueue
+  , vkDeviceWaitIdle
   )
 where
 
@@ -45,3 +46,6 @@ vkGetDeviceQueue d qfix qix = do
   liftIO $ do
     Vk.vkGetDeviceQueue d qfix qix qPtr
     Foreign.peek qPtr
+
+vkDeviceWaitIdle :: MonadIO m => Vk.VkDevice -> m ()
+vkDeviceWaitIdle d = liftIO $ vkResult =<< Vk.vkDeviceWaitIdle d

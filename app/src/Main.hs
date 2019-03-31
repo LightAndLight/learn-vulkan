@@ -41,7 +41,7 @@ import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
 import Graphics.Vulkan.Command.BindPipeline (vkCmdBindPipeline)
 import Graphics.Vulkan.Command.Draw (vkCmdDraw)
 import Graphics.Vulkan.Command.RenderPass (VkRenderPassBeginInfo(..), withCmdRenderPass)
-import Graphics.Vulkan.Device (VkDevice, vkCreateDevice, vkGetDeviceQueue)
+import Graphics.Vulkan.Device (VkDevice, vkCreateDevice, vkGetDeviceQueue, vkDeviceWaitIdle)
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
   (VkDeviceQueueCreateInfo(..))
@@ -171,27 +171,29 @@ mainLoop window device swapchain graphicsQ presentQ commandBuffers imageAvailabl
   where
     go = do
       close <- liftIO $ GLFW.windowShouldClose window
-      unless close $ do
-        liftIO GLFW.pollEvents
-        ix <- vkAcquireNextImageKHR device swapchain maxBound (Just imageAvailableSem) Nothing
-        let
-          submitInfo =
-            VkSubmitInfo
-            { pWaitSemaphores = [imageAvailableSem]
-            , pWaitDstStageMask = [[PipelineStage.ColorAttachmentOutput]]
-            , pCommandBuffers = [commandBuffers !! fromIntegral ix]
-            , pSignalSemaphores = [renderFinishedSem]
-            }
-        vkQueueSubmit graphicsQ [submitInfo] Nothing
-        let
-          presentInfo =
-            VkPresentInfoKHR
-            { pWaitSemaphores = [renderFinishedSem]
-            , pSwapchains = [swapchain]
-            , pImageIndices = [ix]
-            }
-        vkQueuePresentKHR presentQ presentInfo
-        go
+      if close
+        then vkDeviceWaitIdle device
+        else do
+          liftIO GLFW.pollEvents
+          ix <- vkAcquireNextImageKHR device swapchain maxBound (Just imageAvailableSem) Nothing
+          let
+            submitInfo =
+              VkSubmitInfo
+              { pWaitSemaphores = [imageAvailableSem]
+              , pWaitDstStageMask = [[PipelineStage.ColorAttachmentOutput]]
+              , pCommandBuffers = [commandBuffers !! fromIntegral ix]
+              , pSignalSemaphores = [renderFinishedSem]
+              }
+          vkQueueSubmit graphicsQ [submitInfo] Nothing
+          let
+            presentInfo =
+              VkPresentInfoKHR
+              { pWaitSemaphores = [renderFinishedSem]
+              , pSwapchains = [swapchain]
+              , pImageIndices = [ix]
+              }
+          vkQueuePresentKHR presentQ presentInfo
+          go
 
 vulkanGLFW :: IO a -> IO a
 vulkanGLFW m = do
@@ -574,7 +576,7 @@ main =
           { renderPass = renderPass
           , framebuffer = fbuf
           , renderArea = VkRect2D (VkOffset2D 0 0) swapExtent
-          , pClearValues = [ClearValue.Color (ClearValue.Float32 0 0 0 1)]
+          , pClearValues = [ClearValue.Color (ClearValue.Float32 1 1 1 1)]
           }
 
       withCommandBuffer cmdBuf beginInfo $

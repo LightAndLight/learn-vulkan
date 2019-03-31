@@ -108,39 +108,31 @@ data VkSubmitInfo
   , pSignalSemaphores :: [Vk.VkSemaphore]
   } deriving (Eq, Ord, Show)
 
-unVkSubmitInfos ::
+unVkSubmitInfo ::
   MonadIO m =>
-  [VkSubmitInfo] ->
-  m (Foreign.Ptr Vk.VkSubmitInfo)
-unVkSubmitInfos as =
-  liftIO $ do
-    (ptr, _) <- Vk.mallocVkDataArray (fromIntegral $ length as)
-    ptr <$ go ptr as
-  where
-    go ::
-      Foreign.Ptr Vk.VkSubmitInfo ->
-      [VkSubmitInfo] ->
-      IO ()
-    go ptr [] = pure ()
-    go ptr (x:xs) =
-      Foreign.withArray (pWaitSemaphores x) $ \wsPtr ->
-      Foreign.withArray (unVkPipelineStageBits <$> pWaitDstStageMask x) $ \wsmPtr ->
-      Foreign.withArray (pCommandBuffers x) $ \cbPtr ->
-      Foreign.withArray (pSignalSemaphores x) $ \ssPtr -> do
-        Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_SUBMIT_INFO
-        Vk.writeField @"waitSemaphoreCount" ptr (fromIntegral . length $ pWaitSemaphores x)
-        Vk.writeField @"pWaitSemaphores" ptr wsPtr
-        Vk.writeField @"pWaitDstStageMask" ptr wsmPtr
-        Vk.writeField @"commandBufferCount" ptr (fromIntegral . length $ pCommandBuffers x)
-        Vk.writeField @"pCommandBuffers" ptr cbPtr
-        Vk.writeField @"signalSemaphoreCount" ptr (fromIntegral . length $ pSignalSemaphores x)
-        Vk.writeField @"pSignalSemaphores" ptr ssPtr
-        go (Foreign.plusPtr ptr $ Foreign.sizeOf (undefined::Vk.VkSubmitInfo)) xs
+  VkSubmitInfo ->
+  m Vk.VkSubmitInfo
+unVkSubmitInfo a =
+  liftIO $
+  Foreign.withArray (pWaitSemaphores a) $ \wsPtr ->
+  Foreign.withArray (unVkPipelineStageBits <$> pWaitDstStageMask a) $ \wsmPtr ->
+  Foreign.withArray (pCommandBuffers a) $ \cbPtr ->
+  Foreign.withArray (pSignalSemaphores a) $ \ssPtr ->
+  Vk.newVkData $ \ptr -> do
+    Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_SUBMIT_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
+    Vk.writeField @"waitSemaphoreCount" ptr (fromIntegral . length $ pWaitSemaphores a)
+    Vk.writeField @"pWaitSemaphores" ptr wsPtr
+    Vk.writeField @"pWaitDstStageMask" ptr wsmPtr
+    Vk.writeField @"commandBufferCount" ptr (fromIntegral . length $ pCommandBuffers a)
+    Vk.writeField @"pCommandBuffers" ptr cbPtr
+    Vk.writeField @"signalSemaphoreCount" ptr (fromIntegral . length $ pSignalSemaphores a)
+    Vk.writeField @"pSignalSemaphores" ptr ssPtr
 
 vkQueueSubmit :: MonadIO m => Vk.VkQueue -> [VkSubmitInfo] -> Maybe Vk.VkFence -> m ()
 vkQueueSubmit queue infos fence = do
-  infosPtr <- unVkSubmitInfos infos
-  liftIO $
+  infos' <- traverse unVkSubmitInfo infos
+  liftIO . Foreign.withArray infos' $ \infosPtr ->
     vkResult =<<
     Vk.vkQueueSubmit
       queue

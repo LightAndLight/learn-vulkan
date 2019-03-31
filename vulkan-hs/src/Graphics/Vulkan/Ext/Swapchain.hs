@@ -202,6 +202,7 @@ unVkPresentInfoKHR a = do
   ixsPtr <- using $ managed (Foreign.withArray $ pImageIndices a)
   val <- liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"waitSemaphoreCount" ptr (fromIntegral . length $ pWaitSemaphores a)
     Vk.writeField @"pWaitSemaphores" ptr wsPtr
     Vk.writeField @"swapchainCount" ptr $ fromIntegral scsCount
