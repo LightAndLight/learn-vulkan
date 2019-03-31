@@ -42,5 +42,6 @@ unVkCommandPoolCreateInfo ::
 unVkCommandPoolCreateInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkCommandPoolCreateBits $ flags a)
     Vk.writeField @"queueFamilyIndex" ptr (queueFamilyIndex a)

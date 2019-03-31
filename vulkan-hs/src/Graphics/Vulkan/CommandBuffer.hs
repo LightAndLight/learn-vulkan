@@ -55,6 +55,7 @@ unVkCommandBufferAllocateInfo ::
 unVkCommandBufferAllocateInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"commandPool" ptr (commandPool a)
     Vk.writeField @"level" ptr (unVkCommandBufferLevel $ level a)
     Vk.writeField @"commandBufferCount" ptr (commandBufferCount a)
@@ -108,6 +109,7 @@ unVkCommandBufferInheritanceInfo ::
 unVkCommandBufferInheritanceInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"renderPass" ptr (renderPass a)
     Vk.writeField @"subpass" ptr (subpass a)
     Vk.writeField @"framebuffer" ptr (framebuffer a)
@@ -128,6 +130,7 @@ unVkCommandBufferBeginInfo ::
 unVkCommandBufferBeginInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkCommandBufferUsageBits $ flags a)
     Vk.writeField @"pInheritanceInfo" ptr =<<
       maybe

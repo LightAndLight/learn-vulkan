@@ -239,6 +239,7 @@ unVkRenderPassCreateInfo a = do
     Foreign.withArray ds $ \dPtr ->
     Vk.newVkData $ \ptr -> do
       Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO
+      Vk.writeField @"pNext" ptr Vk.VK_NULL
       Vk.writeField @"flags" ptr (unVkRenderPassCreateBits $ flags (a :: VkRenderPassCreateInfo))
       Vk.writeField @"attachmentCount" ptr (fromIntegral . length $ pAttachments a)
       Vk.writeField @"pAttachments" ptr aPtr

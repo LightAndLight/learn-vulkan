@@ -149,6 +149,7 @@ unVkPipelineShaderStageCreateInfo info =
       (pSpecializationInfo info)
   Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkPipelineShaderStageCreateBits $ flags info)
     Vk.writeField @"stage" ptr (unVkShaderStageBit $ stage info)
     Vk.writeField @"module" ptr (module_ info)

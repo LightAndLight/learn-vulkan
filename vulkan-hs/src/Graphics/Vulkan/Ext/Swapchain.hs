@@ -117,6 +117,7 @@ unVkSwapchainCreateInfoKHR p =
   Foreign.withArray (pQueueFamilyIndices p) $ \arrayPtr ->
   Vk.newVkData $ \infoPtr -> do
     Vk.writeField @"sType" infoPtr Vk.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
+    Vk.writeField @"pNext" infoPtr Vk.VK_NULL
     Vk.writeField @"flags" infoPtr (unVkSwapchainCreateBits $ flags p)
     Vk.writeField @"surface" infoPtr (surface p)
     Vk.writeField @"minImageCount" infoPtr (minImageCount p)

@@ -63,6 +63,7 @@ unVkDeviceQueueCreateInfo p = do
   priosPtr <- using $ managed (Foreign.withArray $ pQueuePriorities p)
   liftIO $ Vk.newVkData $ \infoPtr -> do
     Vk.writeField @"sType" infoPtr Vk.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO
+    Vk.writeField @"pNext" infoPtr Vk.VK_NULL
     Vk.writeField @"flags" infoPtr (unVkDeviceQueueCreateBits $ flags p)
     Vk.writeField @"queueFamilyIndex" infoPtr (queueFamilyIndex p)
     Vk.writeField @"queueCount" infoPtr (queueCount p)

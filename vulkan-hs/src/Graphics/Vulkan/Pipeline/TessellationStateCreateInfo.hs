@@ -30,5 +30,6 @@ unVkPipelineTessellationStateCreateInfo ::
 unVkPipelineTessellationStateCreateInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkPipelineTessellationStateCreateBits $ flags a)
     Vk.writeField @"patchControlPoints" ptr (patchControlPoints a)

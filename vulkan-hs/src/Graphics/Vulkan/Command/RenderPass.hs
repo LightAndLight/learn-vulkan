@@ -28,6 +28,7 @@ unVkRenderPassBeginInfo a = do
   liftIO . Foreign.withArray cvs $ \cvPtr ->
     Vk.newVkData $ \ptr -> do
       Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
+      Vk.writeField @"pNext" ptr Vk.VK_NULL
       Vk.writeField @"renderPass" ptr (renderPass a)
       Vk.writeField @"framebuffer" ptr (framebuffer a)
       Vk.writeField @"renderArea" ptr =<< unVkRect2D (renderArea a)

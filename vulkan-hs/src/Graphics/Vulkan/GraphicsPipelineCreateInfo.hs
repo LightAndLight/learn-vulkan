@@ -117,6 +117,7 @@ unVkGraphicsPipelineCreateInfo a = do
   liftIO . Foreign.withArray ss $ \sPtr ->
     Vk.newVkData $ \ptr -> do
       Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO
+      Vk.writeField @"pNext" ptr Vk.VK_NULL
       Vk.writeField @"flags" ptr (unVkPipelineCreateBits $ flags a)
       Vk.writeField @"stageCount" ptr (stageCount $ pStages a)
       Vk.writeField @"pStages" ptr sPtr

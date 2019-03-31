@@ -73,6 +73,7 @@ unVkPipelineDynamicStateCreateInfo a =
   liftIO . Foreign.withArray (unVkDynamicState <$> pDynamicStates a) $ \aPtr ->
   Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkPipelineDynamicStateCreateBits $ flags a)
     Vk.writeField @"dynamicStateCount" ptr (fromIntegral . length $ pDynamicStates a)
     Vk.writeField @"pDynamicStates" ptr aPtr

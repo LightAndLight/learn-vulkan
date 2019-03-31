@@ -54,6 +54,7 @@ unVkPipelineLayoutCreateInfo a = do
     Foreign.withArray pcs $ \pcPtr ->
     Vk.newVkData $ \ptr -> do
       Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+      Vk.writeField @"pNext" ptr Vk.VK_NULL
       Vk.writeField @"flags" ptr (unVkPipelineLayoutCreateBits $ flags a)
       Vk.writeField @"setLayoutCount" ptr (fromIntegral . length $ pSetLayouts a)
       Vk.writeField @"pSetLayouts" ptr slPtr

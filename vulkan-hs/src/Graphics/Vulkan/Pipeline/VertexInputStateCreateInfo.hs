@@ -144,6 +144,7 @@ unVkPipelineVertexInputStateCreateInfo a =
       Foreign.withArray as $ \aPtr ->
       Vk.newVkData $ \ptr -> do
         Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+        Vk.writeField @"pNext" ptr Vk.VK_NULL
         Vk.writeField @"flags" ptr (unVkPipelineVertexInputStateCreateBits $ flags a)
         Vk.writeField @"vertexBindingDescriptionCount" ptr bLen
         Vk.writeField @"pVertexBindingDescriptions" ptr bPtr

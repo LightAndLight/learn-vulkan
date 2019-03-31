@@ -53,6 +53,7 @@ unVkPipelineMultisampleStateCreateInfo a =
   Foreign.withArray (pSampleMask a) $ \sPtr ->
   Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkPipelineMultisampleStateCreateBits $ flags a)
     Vk.writeField @"rasterizationSamples" ptr (unVkSampleCountBit $ rasterizationSamples a)
     Vk.writeField @"sampleShadingEnable" ptr (unVkBool32 $ sampleShadingEnable a)

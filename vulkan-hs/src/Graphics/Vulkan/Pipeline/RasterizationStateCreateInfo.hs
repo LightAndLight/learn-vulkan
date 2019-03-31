@@ -151,6 +151,7 @@ unVkPipelineRasterizationStateCreateInfo ::
 unVkPipelineRasterizationStateCreateInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkPipelineRasterizationStateCreateBits $ flags a)
     Vk.writeField @"depthClampEnable" ptr (unVkBool32 $ depthClampEnable a)
     Vk.writeField @"rasterizerDiscardEnable" ptr (unVkBool32 $ rasterizerDiscardEnable a)

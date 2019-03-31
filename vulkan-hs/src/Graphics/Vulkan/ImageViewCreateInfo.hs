@@ -292,6 +292,7 @@ unVkImageViewCreateInfo a =
   liftIO $
   Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkImageViewCreateBits $ flags a)
     Vk.writeField @"image" ptr (image a)
     Vk.writeField @"viewType" ptr (unVkImageViewType $ viewType a)

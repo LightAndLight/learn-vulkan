@@ -32,6 +32,7 @@ mkApplicationInfo ai = do
     fmap Vk.unsafePtr <$>
     Vk.newVkData @Vk.VkApplicationInfo $ \appInfoPtr -> do
       Vk.writeField @"sType" appInfoPtr Vk.VK_STRUCTURE_TYPE_APPLICATION_INFO
+      Vk.writeField @"pNext" appInfoPtr Vk.VK_NULL
       Vk.writeField @"pApplicationName" appInfoPtr appNamePtr
       Vk.writeField @"applicationVersion" appInfoPtr (applicationVersion ai)
       Vk.writeField @"pEngineName" appInfoPtr engineNamePtr

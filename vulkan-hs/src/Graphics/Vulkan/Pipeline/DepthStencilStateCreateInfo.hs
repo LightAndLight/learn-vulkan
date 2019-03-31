@@ -86,6 +86,7 @@ unVkPipelineDepthStencilStateCreateInfo ::
 unVkPipelineDepthStencilStateCreateInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkPipelineDepthStencilStateCreateBits $ flags a)
     Vk.writeField @"depthTestEnable" ptr (unVkBool32 $ depthTestEnable a)
     Vk.writeField @"depthWriteEnable" ptr (unVkBool32 $ depthWriteEnable a)

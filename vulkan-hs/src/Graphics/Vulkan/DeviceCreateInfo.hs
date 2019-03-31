@@ -49,6 +49,7 @@ unVkDeviceCreateInfo p = do
   liftIO $ do
     Vk.newVkData $ \infoPtr -> do
       Vk.writeField @"sType" infoPtr Vk.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
+      Vk.writeField @"pNext" infoPtr Vk.VK_NULL
       Vk.writeField @"flags" infoPtr (unVkDeviceCreateBits $ flags p)
       Vk.writeField @"queueCreateInfoCount" infoPtr
         (fromIntegral . length $ pQueueCreateInfos p)

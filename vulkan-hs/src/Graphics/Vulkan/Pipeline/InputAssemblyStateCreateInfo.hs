@@ -95,6 +95,7 @@ unVkPipelineInputAssemblyStateCreateInfo ::
 unVkPipelineInputAssemblyStateCreateInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkPipelineInputAssemblyStateCreateBits $ flags a)
     Vk.writeField @"topology" ptr (unVkPrimitiveTopology $ topology a)
     Vk.writeField @"primitiveRestartEnable" ptr (unVkBool32 $ primitiveRestartEnable a)

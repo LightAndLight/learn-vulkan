@@ -61,6 +61,7 @@ unVkPipelineViewportStateCreateInfo a =
       Foreign.withArray ss $ \sPtr ->
       Vk.newVkData $ \ptr -> do
         Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO
+        Vk.writeField @"pNext" ptr Vk.VK_NULL
         Vk.writeField @"flags" ptr (unVkPipelineViewportStateCreateBits $ flags a)
         Vk.writeField @"viewportCount" ptr (fromIntegral $ length $ pViewports a)
         Vk.writeField @"pViewports" ptr vPtr

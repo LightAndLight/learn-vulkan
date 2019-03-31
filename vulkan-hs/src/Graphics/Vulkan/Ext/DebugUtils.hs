@@ -244,6 +244,7 @@ mkDebugUtilsMessengerCreateInfo ci = do
     fmap Vk.unsafePtr <$>
       Vk.newVkData @Vk.VkDebugUtilsMessengerCreateInfoEXT $ \createInfoPtr -> do
         Vk.writeField @"sType" createInfoPtr Vk.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
+        Vk.writeField @"pNext" createInfoPtr Vk.VK_NULL
 
         Vk.writeField @"messageSeverity" createInfoPtr
           (unVkDebugUtilsMessageSeverityBits $ messageSeverity ci)

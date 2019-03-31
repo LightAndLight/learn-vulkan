@@ -36,6 +36,7 @@ unVkFramebufferCreateInfo a =
   liftIO . Foreign.withArray (pAttachments a) $ \aPtr ->
     Vk.newVkData $ \ptr -> do
       Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
+      Vk.writeField @"pNext" ptr Vk.VK_NULL
       Vk.writeField @"flags" ptr (unVkFramebufferCreateBits $ flags a)
       Vk.writeField @"renderPass" ptr (renderPass a)
       Vk.writeField @"attachmentCount" ptr (fromIntegral . length $ pAttachments a)

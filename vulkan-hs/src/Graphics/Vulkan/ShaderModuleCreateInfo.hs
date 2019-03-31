@@ -68,6 +68,7 @@ unVkShaderModuleCreateInfo a =
   liftIO $
   Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO
+    Vk.writeField @"pNext" ptr Vk.VK_NULL
     Vk.writeField @"flags" ptr (unVkShaderModuleCreateBits $ flags a)
     Vk.writeField @"codeSize" ptr (codeSize a)
     Vk.writeField @"pCode" ptr (pCode a)

@@ -78,6 +78,7 @@ unVkPipelineColorBlendStateCreateInfo a = do
   liftIO . Foreign.withArray as $ \aPtr ->
     Vk.newVkData $ \ptr -> do
       Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+      Vk.writeField @"pNext" ptr Vk.VK_NULL
       Vk.writeField @"flags" ptr (unVkPipelineColorBlendStateCreateBits $ flags a)
       Vk.writeField @"logicOpEnable" ptr (unVkBool32 $ logicOpEnable a)
       Vk.writeField @"logicOp" ptr (unVkLogicOp $ logicOp a)

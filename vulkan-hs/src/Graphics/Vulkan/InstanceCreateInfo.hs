@@ -33,6 +33,7 @@ mkInstanceCreateInfo ii = do
     fmap Vk.unsafePtr <$>
     Vk.newVkData @Vk.VkInstanceCreateInfo $ \ptr -> do
       Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+      Vk.writeField @"pNext" ptr Vk.VK_NULL
       Vk.writeField @"pApplicationInfo" ptr appInfoPtr
       Vk.writeField @"enabledLayerCount" ptr (fromIntegral $ length layerNames)
       Vk.writeField @"ppEnabledLayerNames" ptr layerNamesPtr
