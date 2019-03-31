@@ -31,6 +31,8 @@ import qualified Graphics.UI.GLFW as GLFW
 
 import Data.Some (Some(..))
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
+import Graphics.Vulkan.CommandBuffer
+  (VkCommandBufferAllocateInfo(..), VkCommandBufferLevel(..), vkAllocateCommandBuffers)
 import Graphics.Vulkan.CommandPool (vkCreateCommandPool)
 import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
 import Graphics.Vulkan.Device (vkCreateDevice, vkGetDeviceQueue)
@@ -491,6 +493,16 @@ main =
         }
 
     commandPool <- vkCreateCommandPool device commandPoolInfo Foreign.nullPtr
+
+    let
+      commandBufferInfo =
+        VkCommandBufferAllocateInfo
+        { commandPool = commandPool
+        , level = Primary
+        , commandBufferCount = fromIntegral $ length framebuffers
+        }
+
+    commandBuffers <- vkAllocateCommandBuffers device commandBufferInfo
 
     mainLoop window
   where

@@ -22,6 +22,7 @@ library
     Data.Type.Function
     Graphics.Vulkan.Access
     Graphics.Vulkan.ApplicationInfo
+    Graphics.Vulkan.CommandBuffer
     Graphics.Vulkan.CommandPool
     Graphics.Vulkan.CommandPoolCreateInfo
     Graphics.Vulkan.CompareOp
