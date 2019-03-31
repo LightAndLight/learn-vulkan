@@ -11,6 +11,8 @@ module Graphics.Vulkan.CommandBuffer
   , VkCommandBufferBeginInfo(..)
   , unVkCommandBufferBeginInfo
   , vkBeginCommandBuffer
+  , vkEndCommandBuffer
+  , withCommandBuffer
   )
 where
 
@@ -138,3 +140,9 @@ vkBeginCommandBuffer buf info =
   vkResult =<<
   Vk.vkBeginCommandBuffer buf . Vk.unsafePtr =<<
   unVkCommandBufferBeginInfo info
+
+vkEndCommandBuffer :: MonadIO m => Vk.VkCommandBuffer -> m ()
+vkEndCommandBuffer buf = liftIO $ vkResult =<< Vk.vkEndCommandBuffer buf
+
+withCommandBuffer :: MonadIO m => Vk.VkCommandBuffer -> VkCommandBufferBeginInfo -> m a -> m a
+withCommandBuffer buf info m = vkBeginCommandBuffer buf info *> m <* vkEndCommandBuffer buf

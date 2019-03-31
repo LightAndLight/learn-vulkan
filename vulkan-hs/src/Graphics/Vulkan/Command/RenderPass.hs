@@ -43,3 +43,15 @@ vkCmdBeginRenderPass ::
 vkCmdBeginRenderPass buf info sp = do
   info' <- unVkRenderPassBeginInfo info
   liftIO $ Vk.vkCmdBeginRenderPass buf (Vk.unsafePtr info') (unVkSubpassContents sp)
+
+vkCmdEndRenderPass :: MonadIO m => Vk.VkCommandBuffer -> m ()
+vkCmdEndRenderPass = do liftIO . Vk.vkCmdEndRenderPass
+
+withCmdRenderPass ::
+  MonadIO m =>
+  Vk.VkCommandBuffer ->
+  VkRenderPassBeginInfo ->
+  VkSubpassContents ->
+  m a ->
+  m a
+withCmdRenderPass buf info sp m = vkCmdBeginRenderPass buf info sp *> m <* vkCmdEndRenderPass buf

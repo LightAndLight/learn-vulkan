@@ -26,6 +26,7 @@ library
     Graphics.Vulkan.CommandBuffer
     Graphics.Vulkan.CommandPool
     Graphics.Vulkan.CommandPoolCreateInfo
+    Graphics.Vulkan.Command.Draw
     Graphics.Vulkan.Command.RenderPass
     Graphics.Vulkan.CompareOp
     Graphics.Vulkan.Dependency

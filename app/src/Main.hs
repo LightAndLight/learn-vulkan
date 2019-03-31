@@ -33,11 +33,12 @@ import Data.Some (Some(..))
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
 import Graphics.Vulkan.CommandBuffer
   ( VkCommandBufferAllocateInfo(..), VkCommandBufferLevel(..), vkAllocateCommandBuffers
-  , VkCommandBufferBeginInfo(..), VkCommandBufferUsageFlag(..), vkBeginCommandBuffer
+  , VkCommandBufferBeginInfo(..), VkCommandBufferUsageFlag(..), withCommandBuffer
   )
 import Graphics.Vulkan.CommandPool (vkCreateCommandPool)
 import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
-import Graphics.Vulkan.Command.RenderPass (VkRenderPassBeginInfo(..), vkCmdBeginRenderPass)
+import Graphics.Vulkan.Command.Draw (vkCmdDraw)
+import Graphics.Vulkan.Command.RenderPass (VkRenderPassBeginInfo(..), withCmdRenderPass)
 import Graphics.Vulkan.Device (vkCreateDevice, vkGetDeviceQueue)
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
@@ -516,9 +517,7 @@ main =
           { flags = [SimultaneousUse]
           , pInheritanceInfo = Nothing
           }
-      vkBeginCommandBuffer cmdBuf beginInfo
 
-      let
         renderPassBeginInfo =
           VkRenderPassBeginInfo
           { renderPass = renderPass
@@ -527,7 +526,9 @@ main =
           , pClearValues = [ClearValue.Color (ClearValue.Float32 0 0 0 1)]
           }
 
-      vkCmdBeginRenderPass cmdBuf renderPassBeginInfo Subpass.Inline
+      withCommandBuffer cmdBuf beginInfo $
+        withCmdRenderPass cmdBuf renderPassBeginInfo Subpass.Inline $
+        vkCmdDraw cmdBuf 3 1 0 0
 
     mainLoop window
   where
