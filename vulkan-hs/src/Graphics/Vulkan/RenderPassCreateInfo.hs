@@ -195,8 +195,8 @@ unVkSubpassDescription a = do
 
 data VkSubpassDependency
   = VkSubpassDependency
-  { srcSubpass :: Word32
-  , dstSubpass :: Word32
+  { srcSubpass :: Maybe Word32
+  , dstSubpass :: Maybe Word32
   , srcStageMask :: [VkPipelineStageFlag]
   , dstStageMask :: [VkPipelineStageFlag]
   , srcAccessMask :: [VkAccessFlag]
@@ -210,8 +210,8 @@ unVkSubpassDependency ::
   m Vk.VkSubpassDependency
 unVkSubpassDependency a =
   liftIO . Vk.newVkData $ \ptr -> do
-    Vk.writeField @"srcSubpass" ptr (srcSubpass a)
-    Vk.writeField @"dstSubpass" ptr (dstSubpass a)
+    Vk.writeField @"srcSubpass" ptr (fromMaybe Vk.VK_SUBPASS_EXTERNAL $ srcSubpass a)
+    Vk.writeField @"dstSubpass" ptr (fromMaybe Vk.VK_SUBPASS_EXTERNAL $ dstSubpass a)
     Vk.writeField @"srcStageMask" ptr (unVkPipelineStageBits $ srcStageMask a)
     Vk.writeField @"dstStageMask" ptr (unVkPipelineStageBits $ dstStageMask a)
     Vk.writeField @"srcAccessMask" ptr (unVkAccessBits $ srcAccessMask a)

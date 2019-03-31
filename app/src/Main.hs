@@ -32,7 +32,8 @@ import qualified Graphics.UI.GLFW as GLFW
 import Data.Some (Some(..))
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
 import Graphics.Vulkan.CommandBuffer
-  ( VkCommandBufferAllocateInfo(..), VkCommandBufferLevel(..), vkAllocateCommandBuffers
+  ( VkCommandBuffer
+  , VkCommandBufferAllocateInfo(..), VkCommandBufferLevel(..), vkAllocateCommandBuffers
   , VkCommandBufferBeginInfo(..), VkCommandBufferUsageFlag(..), withCommandBuffer
   )
 import Graphics.Vulkan.CommandPool (vkCreateCommandPool)
@@ -40,7 +41,7 @@ import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
 import Graphics.Vulkan.Command.BindPipeline (vkCmdBindPipeline)
 import Graphics.Vulkan.Command.Draw (vkCmdDraw)
 import Graphics.Vulkan.Command.RenderPass (VkRenderPassBeginInfo(..), withCmdRenderPass)
-import Graphics.Vulkan.Device (vkCreateDevice, vkGetDeviceQueue)
+import Graphics.Vulkan.Device (VkDevice, vkCreateDevice, vkGetDeviceQueue)
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
   (VkDeviceQueueCreateInfo(..))
@@ -69,8 +70,11 @@ import Graphics.Vulkan.Ext.Surface
   , vkGetPhysicalDeviceSurfacePresentModesKHR
   )
 import Graphics.Vulkan.Ext.Swapchain
-  ( VkSwapchainCreateInfoKHR(..)
+  ( VkSwapchainKHR
+  , VkSwapchainCreateInfoKHR(..)
   , vkCreateSwapchainKHR, vkGetSwapchainImagesKHR
+  , vkAcquireNextImageKHR
+  , VkPresentInfoKHR(..), vkQueuePresentKHR
   )
 import Graphics.Vulkan.Extent (VkExtent2D(..))
 import Graphics.Vulkan.Format (VkFormat(..))
@@ -119,24 +123,26 @@ import Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo (VkPipelineVertexInpu
 import Graphics.Vulkan.Pipeline.ViewportStateCreateInfo (VkPipelineViewportStateCreateInfo(..))
 import Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
   (VkPipelineInputAssemblyStateCreateInfo(..), VkPrimitiveTopology(..))
-import Graphics.Vulkan.Queue (VkQueueFamilyProperties(..))
+import Graphics.Vulkan.Queue (VkQueue, VkQueueFamilyProperties(..), VkSubmitInfo(..), vkQueueSubmit)
 import Graphics.Vulkan.Rect (VkRect2D(..))
 import Graphics.Vulkan.RenderPass (vkCreateRenderPass)
 import Graphics.Vulkan.RenderPassCreateInfo
   ( VkRenderPassCreateInfo(..)
   , VkAttachmentDescription(..)
   , VkSubpassDescription(..)
+  , VkSubpassDependency(..)
   , VkAttachmentReference(..)
   , VkAttachmentStoreOp(..)
   )
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.SampleCount (VkSampleCount(..))
-import Graphics.Vulkan.Semaphore (VkSemaphoreCreateInfo(..), vkCreateSemaphore)
+import Graphics.Vulkan.Semaphore (VkSemaphore, VkSemaphoreCreateInfo(..), vkCreateSemaphore)
 import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
 import Graphics.Vulkan.ShaderStage (VkShaderStageFlag(..))
 import Graphics.Vulkan.Version (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Viewport (VkViewport(..))
 
+import qualified Graphics.Vulkan.Access as Access (VkAccessFlag(..))
 import qualified Graphics.Vulkan.ClearValue as ClearValue (VkClearValue(..), VkClearColorValue(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceFormat (VkSurfaceFormatKHR(..))
@@ -146,15 +152,46 @@ import qualified Graphics.Vulkan.Ext.DebugUtils as MessageType (VkDebugUtilsMess
 import qualified Graphics.Vulkan.GraphicsPipelineCreateInfo as Stages (Stages(..))
 import qualified Graphics.Vulkan.RenderPassCreateInfo as LoadOp (VkAttachmentLoadOp(..))
 import qualified Graphics.Vulkan.Pipeline.BindPoint as BindPoint (VkPipelineBindPoint(..))
+import qualified Graphics.Vulkan.PipelineStage as PipelineStage (VkPipelineStageFlag(..))
 import qualified Graphics.Vulkan.SubpassContents as Subpass (VkSubpassContents(..))
 import qualified Graphics.Vulkan.Queue as QueueType (VkQueueType(..))
 
-mainLoop :: MonadIO m => GLFW.Window -> m ()
-mainLoop window = go
+mainLoop ::
+  MonadIO m =>
+  GLFW.Window ->
+  VkDevice ->
+  VkSwapchainKHR ->
+  VkQueue ->
+  VkQueue ->
+  [VkCommandBuffer] ->
+  VkSemaphore ->
+  VkSemaphore ->
+  m ()
+mainLoop window device swapchain graphicsQ presentQ commandBuffers imageAvailableSem renderFinishedSem = go
   where
     go = do
       close <- liftIO $ GLFW.windowShouldClose window
-      unless close $ liftIO GLFW.pollEvents *> go
+      unless close $ do
+        liftIO GLFW.pollEvents
+        ix <- vkAcquireNextImageKHR device swapchain maxBound (Just imageAvailableSem) Nothing
+        let
+          submitInfo =
+            VkSubmitInfo
+            { pWaitSemaphores = [imageAvailableSem]
+            , pWaitDstStageMask = [[PipelineStage.ColorAttachmentOutput]]
+            , pCommandBuffers = [commandBuffers !! fromIntegral ix]
+            , pSignalSemaphores = [renderFinishedSem]
+            }
+        vkQueueSubmit graphicsQ [submitInfo] Nothing
+        let
+          presentInfo =
+            VkPresentInfoKHR
+            { pWaitSemaphores = [renderFinishedSem]
+            , pSwapchains = [swapchain]
+            , pImageIndices = [ix]
+            }
+        vkQueuePresentKHR presentQ presentInfo
+        go
 
 vulkanGLFW :: IO a -> IO a
 vulkanGLFW m = do
@@ -348,7 +385,17 @@ main =
             , pPreserveAttachments = []
             }
           ]
-        , pDependencies = []
+        , pDependencies =
+          [ VkSubpassDependency
+            { srcSubpass = Nothing
+            , dstSubpass = Just 0
+            , srcStageMask = [PipelineStage.ColorAttachmentOutput]
+            , dstStageMask = [PipelineStage.ColorAttachmentOutput]
+            , srcAccessMask = []
+            , dstAccessMask = [Access.ColorAttachmentRead, Access.ColorAttachmentWrite]
+            , dependencyFlags = []
+            }
+          ]
         }
 
     renderPass <- vkCreateRenderPass device renderPassInfo Foreign.nullPtr
@@ -535,10 +582,10 @@ main =
           vkCmdBindPipeline cmdBuf BindPoint.Graphics pipeline
           vkCmdDraw cmdBuf 3 1 0 0
 
-    renderFinishedSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
     imageAvailableSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
+    renderFinishedSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
 
-    mainLoop window
+    mainLoop window device swapchain graphicsQ presentQ commandBuffers imageAvailableSem renderFinishedSem
   where
     hints =
       [ WindowHint'ClientAPI ClientAPI'NoAPI

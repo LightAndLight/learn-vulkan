@@ -1,4 +1,9 @@
-module Graphics.Vulkan.Device where
+module Graphics.Vulkan.Device
+  ( Vk.VkDevice
+  , vkCreateDevice
+  , vkGetDeviceQueue
+  )
+where
 
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)

@@ -128,6 +128,7 @@ unVkCommandBufferBeginInfo ::
 unVkCommandBufferBeginInfo a =
   liftIO . Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    Vk.writeField @"flags" ptr (unVkCommandBufferUsageBits $ flags a)
     Vk.writeField @"pInheritanceInfo" ptr =<<
       maybe
         (pure Vk.VK_NULL_HANDLE)

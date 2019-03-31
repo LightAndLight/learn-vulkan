@@ -1,13 +1,27 @@
 {-# language DataKinds, TypeApplications #-}
 {-# language ViewPatterns #-}
-module Graphics.Vulkan.Ext.Swapchain where
+module Graphics.Vulkan.Ext.Swapchain
+  ( Vk.VkSwapchainKHR
+  , VkSwapchainCreateFlagKHR(..)
+  , vkSwapchainCreateBit, unVkSwapchainCreateBit
+  , vkSwapchainCreateBits, unVkSwapchainCreateBits
+  , VkSwapchainCreateInfoKHR(..), unVkSwapchainCreateInfoKHR
+  , vkCreateSwapchainKHR
+  , vkGetSwapchainImagesKHR
+  , vkAcquireNextImageKHR
+  , VkPresentInfoKHR(..)
+  , unVkPresentInfoKHR
+  , vkQueuePresentKHR
+  )
+where
 
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Managed.Safe (MonadManaged, using, managed)
+import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
 import Data.Bits ((.&.), (.|.))
+import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
-import Data.Word (Word32)
+import Data.Word (Word32, Word64)
 import Unsafe.Coerce (unsafeCoerce)
 
 import qualified Foreign.Marshal.Alloc as Foreign
@@ -148,3 +162,58 @@ vkGetSwapchainImagesKHR d sc =
     Foreign.allocaArray count $ \arrayPtr -> do
       vkResult =<< Vk.vkGetSwapchainImagesKHR d sc countPtr arrayPtr
       Foreign.peekArray count arrayPtr
+
+vkAcquireNextImageKHR ::
+  MonadIO m =>
+  Vk.VkDevice ->
+  Vk.VkSwapchainKHR ->
+  Word64 ->
+  Maybe Vk.VkSemaphore ->
+  Maybe Vk.VkFence ->
+  m Word32
+vkAcquireNextImageKHR d sc time sem fen =
+  liftIO . Foreign.alloca $ \resPtr -> do
+    vkResult =<<
+      Vk.vkAcquireNextImageKHR
+        d
+        sc
+        time
+        (fromMaybe Vk.VK_NULL_HANDLE sem)
+        (fromMaybe Vk.VK_NULL_HANDLE fen)
+        resPtr
+    Foreign.peek resPtr
+
+data VkPresentInfoKHR
+  = VkPresentInfoKHR
+  { pWaitSemaphores :: [Vk.VkSemaphore]
+  , pSwapchains :: [Vk.VkSwapchainKHR]
+  , pImageIndices :: [Word32]
+  } deriving (Eq, Ord, Show)
+
+unVkPresentInfoKHR ::
+  (MonadManaged m, MonadIO m) =>
+  VkPresentInfoKHR ->
+  m (Int, Foreign.Ptr Vk.VkResult, Vk.VkPresentInfoKHR)
+unVkPresentInfoKHR a = do
+  let scsCount = length $ pSwapchains a
+  resultsPtr <- using $ managed (Foreign.allocaArray scsCount)
+  wsPtr <- using $ managed (Foreign.withArray $ pWaitSemaphores a)
+  scsPtr <- using $ managed (Foreign.withArray $ pSwapchains a)
+  ixsPtr <- using $ managed (Foreign.withArray $ pImageIndices a)
+  val <- liftIO . Vk.newVkData $ \ptr -> do
+    Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
+    Vk.writeField @"waitSemaphoreCount" ptr (fromIntegral . length $ pWaitSemaphores a)
+    Vk.writeField @"pWaitSemaphores" ptr wsPtr
+    Vk.writeField @"swapchainCount" ptr $ fromIntegral scsCount
+    Vk.writeField @"pSwapchains" ptr scsPtr
+    Vk.writeField @"pImageIndices" ptr ixsPtr
+    Vk.writeField @"pResults" ptr resultsPtr
+  pure (scsCount, resultsPtr, val)
+
+vkQueuePresentKHR :: MonadIO m => Vk.VkQueue -> VkPresentInfoKHR -> m ()
+vkQueuePresentKHR queue info =
+  liftIO . runManaged $ do
+    (count, ptr, info') <- unVkPresentInfoKHR info
+    liftIO $ do
+      vkResult =<< Vk.vkQueuePresentKHR queue (Vk.unsafePtr info')
+      traverse_ vkResult =<< Foreign.peekArray count ptr
