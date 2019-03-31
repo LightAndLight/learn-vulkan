@@ -31,6 +31,8 @@ import qualified Graphics.UI.GLFW as GLFW
 
 import Data.Some (Some(..))
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
+import Graphics.Vulkan.CommandPool (vkCreateCommandPool)
+import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
 import Graphics.Vulkan.Device (vkCreateDevice, vkGetDeviceQueue)
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
@@ -480,6 +482,15 @@ main =
           , layers = 1
           }
       vkCreateFramebuffer device framebufferInfo Foreign.nullPtr
+
+    let
+      commandPoolInfo =
+        VkCommandPoolCreateInfo
+        { flags = []
+        , queueFamilyIndex = graphicsQfIx
+        }
+
+    commandPool <- vkCreateCommandPool device commandPoolInfo Foreign.nullPtr
 
     mainLoop window
   where
