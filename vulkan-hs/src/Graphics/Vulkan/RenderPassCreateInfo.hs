@@ -102,8 +102,8 @@ unVkAttachmentDescription a =
     Vk.writeField @"samples" ptr (unVkSampleCountBit $ samples a)
     Vk.writeField @"loadOp" ptr (unVkAttachmentLoadOp $ loadOp a)
     Vk.writeField @"storeOp" ptr (unVkAttachmentStoreOp $ storeOp a)
-    Vk.writeField @"stencilLoadOp" ptr (unVkAttachmentLoadOp $ loadOp a)
-    Vk.writeField @"stencilStoreOp" ptr (unVkAttachmentStoreOp $ storeOp a)
+    Vk.writeField @"stencilLoadOp" ptr (unVkAttachmentLoadOp $ stencilLoadOp a)
+    Vk.writeField @"stencilStoreOp" ptr (unVkAttachmentStoreOp $ stencilStoreOp a)
     Vk.writeField @"initialLayout" ptr (unVkImageLayout $ initialLayout a)
     Vk.writeField @"finalLayout" ptr (unVkImageLayout $ finalLayout a)
 
