@@ -239,18 +239,59 @@ main :: IO ()
 main =
   vulkanGLFW . runManaged $ do
     window <- mkWindow hints 1280 960 "vulkan" Nothing Nothing
+
     requiredExts <- glfwGetRequiredInstanceExtensions
-    inst <- mkInstance (icInfo requiredExts) Foreign.nullPtr
-    messenger <- mkDebugUtilsMessenger @() inst messengerCreateInfo Foreign.nullPtr
+
+    let
+      instanceInfo =
+        VkInstanceCreateInfo
+        { pApplicationInfo =
+          VkApplicationInfo
+          { pApplicationName = "Demo"
+          , applicationVersion = _VK_MAKE_VERSION 1 0 0
+          , pEngineName = "No Engine"
+          , engineVersion = _VK_MAKE_VERSION 1 0 0
+          , apiVersion = _VK_MAKE_VERSION 1 0 82
+          }
+        , ppEnabledLayerNames = [LunargStandardValidation]
+        , ppEnabledExtensionNames = DebugUtils : requiredExts
+        }
+    inst <- mkInstance instanceInfo Foreign.nullPtr
+
+    let
+      messengerInfo =
+        VkDebugUtilsMessengerCreateInfoEXT
+        { messageSeverity = [Verbose, Warning, Error]
+        , messageType =
+          [ MessageType.General
+          , MessageType.Validation
+          , MessageType.Performance
+          ]
+        , pfnUserCallback = \sev types cbData userData -> do
+            putStrLn "debug callback:"
+            print sev
+            print types
+            print cbData
+            print userData
+            pure False
+        , pUserData = ()
+        }
+    messenger <- mkDebugUtilsMessenger @() inst messengerInfo Foreign.nullPtr
+
     surface <- glfwCreateWindowSurface inst window Foreign.nullPtr
+
     physicalDevice <-
       (\case; [] -> error "vulkan no devices"; d:_ -> d) <$>
       vkEnumeratePhysicalDevices inst
+
     dFeatures <- vkGetPhysicalDeviceFeatures physicalDevice
+
     qfProps <- vkGetPhysicalDeviceQueueFamilyProperties physicalDevice
+
     graphicsQfIx <-
       maybe (error "vulkan no suitable queue families") (pure . fromIntegral) $
       findIndex (elem QueueType.Graphics . queueFlags) qfProps
+
     presentQfIx <-
       maybe (error "vulkan no suitable queue families") (pure . fromIntegral) =<<
       ifindIndexM
@@ -260,11 +301,29 @@ main =
              ix
              surface)
         qfProps
-    device <-
-      vkCreateDevice
-        physicalDevice
-        (dcInfo graphicsQfIx presentQfIx requiredExts dFeatures)
-        Foreign.nullPtr
+
+    let
+      deviceInfo =
+        VkDeviceCreateInfo
+        { flags = []
+        , pQueueCreateInfos =
+          foldr
+            (\ix rest ->
+              VkDeviceQueueCreateInfo
+              { flags = []
+              , queueFamilyIndex = ix
+              , queueCount = 1
+              , pQueuePriorities = [1.0]
+              } :
+              rest)
+            []
+            (Set.fromList [graphicsQfIx, presentQfIx])
+        , ppEnabledLayerNames = [LunargStandardValidation]
+        , ppEnabledExtensionNames = [Swapchain]
+        , pEnabledFeatures = dFeatures
+        }
+
+    device <- vkCreateDevice physicalDevice deviceInfo Foreign.nullPtr
 
     graphicsQ <- vkGetDeviceQueue device graphicsQfIx 0
     presentQ <- vkGetDeviceQueue device presentQfIx 0
@@ -627,56 +686,4 @@ main =
             (min
                (Extent2D.height $ maxImageExtent scs)
                (Extent2D.height $ currentExtent scs))
-      }
-
-    icInfo required =
-      VkInstanceCreateInfo
-      { pApplicationInfo =
-        VkApplicationInfo
-        { pApplicationName = "Demo"
-        , applicationVersion = _VK_MAKE_VERSION 1 0 0
-        , pEngineName = "No Engine"
-        , engineVersion = _VK_MAKE_VERSION 1 0 0
-        , apiVersion = _VK_MAKE_VERSION 1 0 82
-        }
-      , ppEnabledLayerNames = [LunargStandardValidation]
-      , ppEnabledExtensionNames = DebugUtils : required
-      }
-
-    messengerCreateInfo =
-      VkDebugUtilsMessengerCreateInfoEXT
-      { messageSeverity = [Verbose, Warning, Error]
-      , messageType =
-        [ MessageType.General
-        , MessageType.Validation
-        , MessageType.Performance
-        ]
-      , pfnUserCallback = \sev types cbData userData -> do
-          putStrLn "debug callback:"
-          print sev
-          print types
-          print cbData
-          print userData
-          pure False
-      , pUserData = ()
-      }
-
-    dcInfo gqix pqix required fts =
-      VkDeviceCreateInfo
-      { flags = []
-      , pQueueCreateInfos =
-        foldr
-          (\ix rest ->
-             VkDeviceQueueCreateInfo
-             { flags = []
-             , queueFamilyIndex = ix
-             , queueCount = 1
-             , pQueuePriorities = [1.0]
-             } :
-             rest)
-          []
-          (Set.fromList [gqix, pqix])
-      , ppEnabledLayerNames = [LunargStandardValidation]
-      , ppEnabledExtensionNames = [Swapchain]
-      , pEnabledFeatures = fts
       }
