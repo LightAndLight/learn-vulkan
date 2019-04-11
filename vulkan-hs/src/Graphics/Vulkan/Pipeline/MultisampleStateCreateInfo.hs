@@ -39,7 +39,7 @@ data VkPipelineMultisampleStateCreateInfo
   , rasterizationSamples :: VkSampleCount
   , sampleShadingEnable :: Bool
   , minSampleShading :: Float
-  , pSampleMask :: [Vk.VkSampleMask]
+  , pSampleMask :: Maybe [Vk.VkSampleMask]
   , alphaToCoverageEnable :: Bool
   , alphaToOneEnable :: Bool
   } deriving (Eq, Ord, Show)
@@ -50,14 +50,19 @@ unVkPipelineMultisampleStateCreateInfo ::
   m Vk.VkPipelineMultisampleStateCreateInfo
 unVkPipelineMultisampleStateCreateInfo a =
   liftIO $
-  Foreign.withArray (pSampleMask a) $ \sPtr ->
-  Vk.newVkData $ \ptr -> do
-    Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
-    Vk.writeField @"pNext" ptr Vk.VK_NULL
-    Vk.writeField @"flags" ptr (unVkPipelineMultisampleStateCreateBits $ flags a)
-    Vk.writeField @"rasterizationSamples" ptr (unVkSampleCountBit $ rasterizationSamples a)
-    Vk.writeField @"sampleShadingEnable" ptr (unVkBool32 $ sampleShadingEnable a)
-    Vk.writeField @"minSampleShading" ptr (minSampleShading a)
-    Vk.writeField @"pSampleMask" ptr sPtr
-    Vk.writeField @"alphaToCoverageEnable" ptr (unVkBool32 $ alphaToCoverageEnable a)
-    Vk.writeField @"alphaToOneEnable" ptr (unVkBool32 $ alphaToOneEnable a)
+  case pSampleMask a of
+    Nothing -> go Foreign.nullPtr
+    Just as -> Foreign.withArray as go
+  where
+    go :: Foreign.Ptr Vk.VkSampleMask -> IO Vk.VkPipelineMultisampleStateCreateInfo
+    go sPtr =
+      Vk.newVkData $ \ptr -> do
+        Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+        Vk.writeField @"pNext" ptr Vk.VK_NULL
+        Vk.writeField @"flags" ptr (unVkPipelineMultisampleStateCreateBits $ flags a)
+        Vk.writeField @"rasterizationSamples" ptr (unVkSampleCountBit $ rasterizationSamples a)
+        Vk.writeField @"sampleShadingEnable" ptr (unVkBool32 $ sampleShadingEnable a)
+        Vk.writeField @"minSampleShading" ptr (minSampleShading a)
+        Vk.writeField @"pSampleMask" ptr sPtr
+        Vk.writeField @"alphaToCoverageEnable" ptr (unVkBool32 $ alphaToCoverageEnable a)
+        Vk.writeField @"alphaToOneEnable" ptr (unVkBool32 $ alphaToOneEnable a)

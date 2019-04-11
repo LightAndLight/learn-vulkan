@@ -90,7 +90,9 @@ import Graphics.Vulkan.ImageViewCreateInfo
   )
 import Graphics.Vulkan.Instance (mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
-import Graphics.Vulkan.Layer (VkLayer(..), vkLayer, unVkLayer)
+import Graphics.Vulkan.Layer
+  ( VkLayer(..), vkLayer, unVkLayer
+  )
 import Graphics.Vulkan.Offset (VkOffset2D(..))
 import Graphics.Vulkan.PhysicalDevice
   ( vkEnumeratePhysicalDevices
@@ -318,7 +320,7 @@ main =
               rest)
             []
             (Set.fromList [graphicsQfIx, presentQfIx])
-        , ppEnabledLayerNames = [LunargStandardValidation]
+        , ppEnabledLayerNames = []
         , ppEnabledExtensionNames = [Swapchain]
         , pEnabledFeatures = dFeatures
         }
@@ -537,8 +539,8 @@ main =
         { flags = []
         , rasterizationSamples = SC1
         , sampleShadingEnable = False
-        , minSampleShading = 1
-        , pSampleMask = []
+        , minSampleShading = 0
+        , pSampleMask = Nothing
         , alphaToCoverageEnable = False
         , alphaToOneEnable = False
         }

@@ -12,5 +12,5 @@ in
 
       nativeBuildInputs = 
         oldAttrs.nativeBuildInputs ++ 
-        [ nixpkgs.vulkan-tools nixpkgs.glslang ];
+        [ nixpkgs.vulkan-tools nixpkgs.glslang (import <nixpkgs> {}).renderdoc ];
   })
