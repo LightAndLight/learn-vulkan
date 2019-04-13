@@ -185,7 +185,8 @@ mainLoop ::
 mainLoop window mkSC device qs syncObjects = do
   next <- liftIO . flip Unsafe.with pure $ do
     (swapchain, commandBuffers) <- mkSC
-    go swapchain commandBuffers (cycle syncObjects) <* vkDeviceWaitIdle device
+    go swapchain commandBuffers (cycle syncObjects) <*
+      vkDeviceWaitIdle device
   case next of
     Quit -> pure ()
     Recreate -> mainLoop window mkSC device qs syncObjects
@@ -196,7 +197,7 @@ mainLoop window mkSC device qs syncObjects = do
       [VkCommandBuffer] ->
       [(VkSemaphore, VkSemaphore, VkFence)] ->
       m LoopState
-    go swapchain commandBuffers ((imageAvailableSem, renderFinishedSem, inFlightFence) : rest) = do
+    go swapchain cmdBuffers ((imageAvailableSem, renderFinishedSem, inFlightFence) : rest) = do
       close <- liftIO $ GLFW.windowShouldClose window
       if close
         then pure Quit
@@ -228,7 +229,7 @@ mainLoop window mkSC device qs syncObjects = do
                   VkSubmitInfo
                   { pWaitSemaphores = [imageAvailableSem]
                   , pWaitDstStageMask = [[PipelineStage.ColorAttachmentOutput]]
-                  , pCommandBuffers = [commandBuffers !! fromIntegral ix]
+                  , pCommandBuffers = [cmdBuffers !! fromIntegral ix]
                   , pSignalSemaphores = [renderFinishedSem]
                   }
               vkResetFences device [inFlightFence]
@@ -241,7 +242,7 @@ mainLoop window mkSC device qs syncObjects = do
                   , pImageIndices = [ix]
                   }
               vkQueuePresentKHR (presentQ qs) presentInfo
-              go swapchain commandBuffers rest
+              go swapchain cmdBuffers rest
 
 vulkanGLFW :: IO a -> IO a
 vulkanGLFW m = do
@@ -405,12 +406,13 @@ data SwapchainConfig
 
 initSwapchain ::
   MonadManaged m =>
+  GLFW.Window ->
   VkPhysicalDevice ->
   QueueFamilyIndices ->
   VkSurfaceKHR ->
   VkDevice ->
   m (VkSwapchainKHR, SwapchainConfig)
-initSwapchain physDevice qfIxs surf device = do
+initSwapchain window physDevice qfIxs surf device = do
   availableFormats <- vkGetPhysicalDeviceSurfaceFormatsKHR physDevice surf
   surfaceFormat <-
     case availableFormats of
@@ -427,10 +429,12 @@ initSwapchain physDevice qfIxs surf device = do
 
   let
     presentMode = mkPresentMode availablePresentModes
-    swapExtent = mkSwapExtent surfaceCapabilities
     imageCount = mkImageCount surfaceCapabilities
     differentQfIxs = graphicsQfIx qfIxs /= presentQfIx qfIxs
 
+  swapExtent <- liftIO $ mkSwapExtent surfaceCapabilities
+
+  let
     swapchainCreateInfo =
       VkSwapchainCreateInfoKHR
       { flags = []
@@ -481,20 +485,11 @@ initSwapchain physDevice qfIxs surf device = do
       else min (SurfaceCapabilities.minImageCount scs + 1) (SurfaceCapabilities.maxImageCount scs)
 
     mkSwapExtent scs =
-      VkExtent2D
-      { width =
-          max
-            (Extent2D.width $ minImageExtent scs)
-            (min
-               (Extent2D.width $ maxImageExtent scs)
-               (Extent2D.width $ currentExtent scs))
-      , height =
-          max
-            (Extent2D.height $ minImageExtent scs)
-            (min
-               (Extent2D.height $ maxImageExtent scs)
-               (Extent2D.height $ currentExtent scs))
-      }
+      if Extent2D.width (currentExtent scs) /= maxBound
+      then pure $ currentExtent scs
+      else do
+        (w, h) <- GLFW.getFramebufferSize window
+        pure $ VkExtent2D { width = fromIntegral w, height = fromIntegral h }
 
 initImageViews :: MonadManaged m => VkDevice -> VkSwapchainKHR -> SwapchainConfig -> m [VkImageView]
 initImageViews device swapchain scConfig = do
@@ -813,6 +808,7 @@ initSyncObjects dev =
 
 recreateSwapchain ::
   MonadManaged m =>
+  GLFW.Window ->
   VkPhysicalDevice ->
   VkDevice ->
   QueueFamilyIndices ->
@@ -822,8 +818,8 @@ recreateSwapchain ::
   VkPipelineLayout ->
   VkCommandPool ->
   m (VkSwapchainKHR, [VkCommandBuffer])
-recreateSwapchain physDev dev qfIxs surf vert frag pipeLayout cmdPool = do
-  (swapchain, scConfig) <- initSwapchain physDev qfIxs surf dev
+recreateSwapchain window physDev dev qfIxs surf vert frag pipeLayout cmdPool = do
+  (swapchain, scConfig) <- initSwapchain window physDev qfIxs surf dev
   imageViews <- initImageViews dev swapchain scConfig
   renderPass <- initRenderPass dev scConfig
   pipeline <- initPipeline dev vert frag scConfig pipeLayout renderPass
@@ -857,7 +853,16 @@ main =
 
     mainLoop
       window
-      (recreateSwapchain physicalDevice device qfIxs surface vert frag pipelineLayout commandPool)
+      (recreateSwapchain
+         window
+         physicalDevice
+         device
+         qfIxs
+         surface
+         vert
+         frag
+         pipelineLayout
+         commandPool)
       device
       qs
       syncObjects
