@@ -19,6 +19,7 @@ library
   exposed-modules:
     Data.Constraint.All
     Data.Some
+    Data.Struct
     Data.Type.Function
     Graphics.Vulkan.Access
     Graphics.Vulkan.ApplicationInfo
