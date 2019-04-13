@@ -47,6 +47,7 @@ library
     Graphics.Vulkan.GraphicsPipelineCreateInfo
     Graphics.Vulkan.ImageLayout
     Graphics.Vulkan.ImageCreateInfo
+    Graphics.Vulkan.ImageView
     Graphics.Vulkan.ImageViewCreateInfo
     Graphics.Vulkan.Instance
     Graphics.Vulkan.InstanceCreateInfo

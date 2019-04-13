@@ -1,12 +1,28 @@
 {-# language DataKinds, TypeApplications #-}
-module Graphics.Vulkan.Ext.Surface where
+module Graphics.Vulkan.Ext.Surface
+  ( Vk.VkSurfaceKHR
+  , glfwCreateWindowSurface
+  , vkGetPhysicalDeviceSurfaceSupportKHR
+  , VkCompositeAlphaFlagKHR(..)
+  , vkCompositeAlphaBit, unVkCompositeAlphaBit
+  , vkCompositeAlphaBits, unVkCompositeAlphaBits
+  , VkSurfaceTransformFlagKHR(..)
+  , vkSurfaceTransformBit, unVkSurfaceTransformBit
+  , vkSurfaceTransformBits, unVkSurfaceTransformBits
+  , VkSurfaceCapabilitiesKHR(..), vkSurfaceCapabilitiesKHR
+  , vkGetPhysicalDeviceSurfaceCapabilitiesKHR
+  , VkSurfaceFormatKHR(..), vkSurfaceFormatKHR
+  , vkGetPhysicalDeviceSurfaceFormatsKHR
+  , VkPresentModeKHR(..), vkPresentModeKHR, unVkPresentModeKHR
+  , vkGetPhysicalDeviceSurfacePresentModesKHR
+  )
+where
 
 import Data.Bits ((.&.), (.|.))
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Managed.Safe (MonadManaged, using, managed)
 import Data.Word (Word32)
-
 import qualified Foreign.Marshal.Alloc as Foreign
 import qualified Foreign.Marshal.Array as Foreign
 import qualified Foreign.Storable as Foreign

@@ -1,6 +1,25 @@
 {-# language DataKinds, TypeApplications #-}
 {-# language ScopedTypeVariables #-}
-module Graphics.Vulkan.Ext.DebugUtils where
+module Graphics.Vulkan.Ext.DebugUtils
+  ( Vk.VkDebugUtilsMessengerEXT
+  , mkDebugUtilsMessengerCallback
+  , VkDebugUtilsMessengerCreateInfoEXT(..)
+  , mkDebugUtilsMessengerCreateInfo
+  , mkDebugUtilsMessenger
+  , VkDebugUtilsObjectNameInfoEXT(..)
+  , VkDebugUtilsLabelEXT(..)
+  , VkDebugUtilsMessengerCallbackDataEXT(..)
+  , vkDebugUtilsObjectNameInfoEXT
+  , vkDebugUtilsLabelEXT
+  , vkDebugUtilsMessengerCallbackDataEXT
+  , VkDebugUtilsMessageSeverity(..)
+  , vkDebugUtilsMessageSeverityBit, unVkDebugUtilsMessageSeverityBit
+  , vkDebugUtilsMessageSeverityBits, unVkDebugUtilsMessageSeverityBits
+  , VkDebugUtilsMessageType(..)
+  , vkDebugUtilsMessageTypeBit, unVkDebugUtilsMessageTypeBit
+  , vkDebugUtilsMessageTypeBits, unVkDebugUtilsMessageTypeBits
+  )
+where
 
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)

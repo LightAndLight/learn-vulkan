@@ -1,4 +1,9 @@
-module Graphics.Vulkan.ShaderModule where
+module Graphics.Vulkan.ShaderModule
+  ( Vk.VkShaderModule
+  , shaderModuleFromFile
+  , vkCreateShaderModule
+  )
+where
 
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)

@@ -3,9 +3,7 @@
 {-# language ViewPatterns #-}
 module Graphics.Vulkan.ImageViewCreateInfo where
 
-import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Managed.Safe (MonadManaged, using, managed)
 import Data.Bits ((.&.), (.|.))
 import Data.Word (Word32)
 import Unsafe.Coerce (unsafeCoerce)
@@ -20,7 +18,6 @@ import qualified Graphics.Vulkan.Marshal as Vk
 -- import qualified Graphics.Vulkan.Ext.VK_EXT_fragment_density_map as Vk
 
 import Graphics.Vulkan.Format (VkFormat, vkFormat, unVkFormat)
-import Graphics.Vulkan.Result (vkResult)
 
 data VkImageViewCreateFlag
   -- = FragmentDensityMapDynamic
@@ -299,15 +296,3 @@ unVkImageViewCreateInfo a =
     Vk.writeField @"format" ptr (unVkFormat $ format a)
     Vk.writeField @"components" ptr =<< unVkComponentMapping (components a)
     Vk.writeField @"subresourceRange" ptr =<< unVkImageSubresourceRange (subresourceRange a)
-
-vkCreateImageView ::
-  (MonadManaged m, MonadIO m) =>
-  Vk.VkDevice ->
-  VkImageViewCreateInfo ->
-  Foreign.Ptr Vk.VkAllocationCallbacks ->
-  m Vk.VkImageView
-vkCreateImageView d info cbs = do
-  ivPtr <- using $ managed Foreign.alloca
-  info' <- unVkImageViewCreateInfo info
-  liftIO $ vkResult =<< Vk.vkCreateImageView d (Vk.unsafePtr info') cbs ivPtr
-  using $ managed (bracket (Foreign.peek ivPtr) (\iv -> Vk.vkDestroyImageView d iv cbs))

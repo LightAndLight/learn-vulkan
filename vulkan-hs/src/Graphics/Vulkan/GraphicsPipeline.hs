@@ -1,4 +1,6 @@
-module Graphics.Vulkan.GraphicsPipeline where
+module Graphics.Vulkan.GraphicsPipeline
+  (Vk.VkPipeline, vkCreateGraphicsPipelines)
+where
 
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)

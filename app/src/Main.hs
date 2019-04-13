@@ -36,7 +36,7 @@ import Graphics.Vulkan.CommandBuffer
   , VkCommandBufferAllocateInfo(..), VkCommandBufferLevel(..), vkAllocateCommandBuffers
   , VkCommandBufferBeginInfo(..), VkCommandBufferUsageFlag(..), withCommandBuffer
   )
-import Graphics.Vulkan.CommandPool (vkCreateCommandPool)
+import Graphics.Vulkan.CommandPool (VkCommandPool, vkCreateCommandPool)
 import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
 import Graphics.Vulkan.Command.BindPipeline (vkCmdBindPipeline)
 import Graphics.Vulkan.Command.Draw (vkCmdDraw)
@@ -53,13 +53,15 @@ import Graphics.Vulkan.Ext
   )
 import Graphics.Vulkan.Ext.ColorSpace (VkColorSpaceKHR(..))
 import Graphics.Vulkan.Ext.DebugUtils
-  ( VkDebugUtilsMessengerCreateInfoEXT(..)
+  ( VkDebugUtilsMessengerEXT
+  , VkDebugUtilsMessengerCreateInfoEXT(..)
   , VkDebugUtilsMessageSeverity(..)
   , VkDebugUtilsMessageType(..)
   , mkDebugUtilsMessenger
   )
 import Graphics.Vulkan.Ext.Surface
-  ( VkSurfaceFormatKHR(..)
+  ( VkSurfaceKHR
+  , VkSurfaceFormatKHR(..)
   , VkPresentModeKHR(..)
   , VkSurfaceCapabilitiesKHR(..)
   , VkCompositeAlphaFlagKHR(..)
@@ -78,24 +80,25 @@ import Graphics.Vulkan.Ext.Swapchain
   )
 import Graphics.Vulkan.Extent (VkExtent2D(..))
 import Graphics.Vulkan.Format (VkFormat(..))
-import Graphics.Vulkan.Framebuffer (vkCreateFramebuffer)
+import Graphics.Vulkan.Framebuffer (VkFramebuffer, vkCreateFramebuffer)
 import Graphics.Vulkan.FramebufferCreateInfo (VkFramebufferCreateInfo(..))
 import Graphics.Vulkan.GraphicsPipelineCreateInfo (VkGraphicsPipelineCreateInfo(..))
-import Graphics.Vulkan.GraphicsPipeline (vkCreateGraphicsPipelines)
+import Graphics.Vulkan.GraphicsPipeline (VkPipeline, vkCreateGraphicsPipelines)
 import Graphics.Vulkan.ImageCreateInfo (VkSharingMode(..), VkImageUsageFlag(..))
+import Graphics.Vulkan.ImageView (VkImageView, vkCreateImageView)
 import Graphics.Vulkan.ImageViewCreateInfo
   ( VkImageViewCreateInfo(..), VkImageSubresourceRange(..), VkComponentMapping(..)
   , VkImageAspectFlag(..), VkComponentSwizzle(..), VkImageViewType(..)
-  , vkCreateImageView
   )
-import Graphics.Vulkan.Instance (mkInstance)
+import Graphics.Vulkan.Instance (VkInstance, mkInstance)
 import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer
   ( VkLayer(..), vkLayer, unVkLayer
   )
 import Graphics.Vulkan.Offset (VkOffset2D(..))
 import Graphics.Vulkan.PhysicalDevice
-  ( vkEnumeratePhysicalDevices
+  ( VkPhysicalDevice
+  , vkEnumeratePhysicalDevices
   , vkGetPhysicalDeviceProperties
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
@@ -107,7 +110,7 @@ import Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
 import Graphics.Vulkan.Pipeline.ColorBlendStateCreateInfo
   ( VkPipelineColorBlendStateCreateInfo(..), VkLogicOp(..)
   )
-import Graphics.Vulkan.Pipeline.Layout (vkCreatePipelineLayout)
+import Graphics.Vulkan.Pipeline.Layout (VkPipelineLayout, vkCreatePipelineLayout)
 import Graphics.Vulkan.Pipeline.LayoutCreateInfo
   ( VkPipelineLayoutCreateInfo(..)
   )
@@ -127,7 +130,7 @@ import Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
   (VkPipelineInputAssemblyStateCreateInfo(..), VkPrimitiveTopology(..))
 import Graphics.Vulkan.Queue (VkQueue, VkQueueFamilyProperties(..), VkSubmitInfo(..), vkQueueSubmit)
 import Graphics.Vulkan.Rect (VkRect2D(..))
-import Graphics.Vulkan.RenderPass (vkCreateRenderPass)
+import Graphics.Vulkan.RenderPass (VkRenderPass, vkCreateRenderPass)
 import Graphics.Vulkan.RenderPassCreateInfo
   ( VkRenderPassCreateInfo(..)
   , VkAttachmentDescription(..)
@@ -139,7 +142,7 @@ import Graphics.Vulkan.RenderPassCreateInfo
 import Graphics.Vulkan.Result (vkResult)
 import Graphics.Vulkan.SampleCount (VkSampleCount(..))
 import Graphics.Vulkan.Semaphore (VkSemaphore, VkSemaphoreCreateInfo(..), vkCreateSemaphore)
-import Graphics.Vulkan.ShaderModule (shaderModuleFromFile)
+import Graphics.Vulkan.ShaderModule (VkShaderModule, shaderModuleFromFile)
 import Graphics.Vulkan.ShaderStage (VkShaderStageFlag(..))
 import Graphics.Vulkan.Version (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Viewport (VkViewport(..))
@@ -163,13 +166,12 @@ mainLoop ::
   GLFW.Window ->
   VkDevice ->
   VkSwapchainKHR ->
-  VkQueue ->
-  VkQueue ->
+  Queues ->
   [VkCommandBuffer] ->
   VkSemaphore ->
   VkSemaphore ->
   m ()
-mainLoop window device swapchain graphicsQ presentQ commandBuffers imageAvailableSem renderFinishedSem = go
+mainLoop window device swapchain qs commandBuffers imageAvailableSem renderFinishedSem = go
   where
     go = do
       close <- liftIO $ GLFW.windowShouldClose window
@@ -186,7 +188,7 @@ mainLoop window device swapchain graphicsQ presentQ commandBuffers imageAvailabl
               , pCommandBuffers = [commandBuffers !! fromIntegral ix]
               , pSignalSemaphores = [renderFinishedSem]
               }
-          vkQueueSubmit graphicsQ [submitInfo] Nothing
+          vkQueueSubmit (graphicsQ qs) [submitInfo] Nothing
           let
             presentInfo =
               VkPresentInfoKHR
@@ -194,7 +196,7 @@ mainLoop window device swapchain graphicsQ presentQ commandBuffers imageAvailabl
               , pSwapchains = [swapchain]
               , pImageIndices = [ix]
               }
-          vkQueuePresentKHR presentQ presentInfo
+          vkQueuePresentKHR (presentQ qs) presentInfo
           go
 
 vulkanGLFW :: IO a -> IO a
@@ -237,423 +239,183 @@ ifindIndexM p = go 0
         then pure $ Just n
         else go (n+1) xs
 
-main :: IO ()
-main =
-  vulkanGLFW . runManaged $ do
-    window <- mkWindow hints 1280 960 "vulkan" Nothing Nothing
 
-    requiredExts <- glfwGetRequiredInstanceExtensions
+initInstance :: MonadManaged m => m VkInstance
+initInstance = do
+  requiredExts <- glfwGetRequiredInstanceExtensions
 
-    let
-      instanceInfo =
-        VkInstanceCreateInfo
-        { pApplicationInfo =
-          VkApplicationInfo
-          { pApplicationName = "Demo"
-          , applicationVersion = _VK_MAKE_VERSION 1 0 0
-          , pEngineName = "No Engine"
-          , engineVersion = _VK_MAKE_VERSION 1 0 0
-          , apiVersion = _VK_MAKE_VERSION 1 0 82
-          }
-        , ppEnabledLayerNames = [LunargStandardValidation]
-        , ppEnabledExtensionNames = DebugUtils : requiredExts
+  let
+    instanceInfo =
+      VkInstanceCreateInfo
+      { pApplicationInfo =
+        VkApplicationInfo
+        { pApplicationName = "Demo"
+        , applicationVersion = _VK_MAKE_VERSION 1 0 0
+        , pEngineName = "No Engine"
+        , engineVersion = _VK_MAKE_VERSION 1 0 0
+        , apiVersion = _VK_MAKE_VERSION 1 0 82
         }
-    inst <- mkInstance instanceInfo Foreign.nullPtr
+      , ppEnabledLayerNames = [LunargStandardValidation]
+      , ppEnabledExtensionNames = DebugUtils : requiredExts
+      }
 
-    let
-      messengerInfo =
-        VkDebugUtilsMessengerCreateInfoEXT
-        { messageSeverity = [Verbose, Warning, Error]
-        , messageType =
-          [ MessageType.General
-          , MessageType.Validation
-          , MessageType.Performance
-          ]
-        , pfnUserCallback = \sev types cbData userData -> do
-            putStrLn "debug callback:"
-            print sev
-            print types
-            print cbData
-            print userData
-            pure False
-        , pUserData = ()
-        }
-    messenger <- mkDebugUtilsMessenger @() inst messengerInfo Foreign.nullPtr
+  mkInstance instanceInfo Foreign.nullPtr
 
-    surface <- glfwCreateWindowSurface inst window Foreign.nullPtr
+initDebugMessenger :: MonadManaged m => VkInstance -> m VkDebugUtilsMessengerEXT
+initDebugMessenger inst = do
+  let
+    messengerInfo =
+      VkDebugUtilsMessengerCreateInfoEXT
+      { messageSeverity = [Verbose, Warning, Error]
+      , messageType =
+        [ MessageType.General
+        , MessageType.Validation
+        , MessageType.Performance
+        ]
+      , pfnUserCallback = \sev types cbData userData -> do
+          putStrLn "debug callback:"
+          print sev
+          print types
+          print cbData
+          print userData
+          pure False
+      , pUserData = ()
+      }
+  mkDebugUtilsMessenger @() inst messengerInfo Foreign.nullPtr
 
-    physicalDevice <-
-      (\case; [] -> error "vulkan no devices"; d:_ -> d) <$>
-      vkEnumeratePhysicalDevices inst
+initPhysicalDevice :: MonadManaged m => VkInstance -> m VkPhysicalDevice
+initPhysicalDevice inst =
+  (\case; [] -> error "vulkan no devices"; d:_ -> d) <$>
+  vkEnumeratePhysicalDevices inst
 
-    dFeatures <- vkGetPhysicalDeviceFeatures physicalDevice
+data QueueFamilyIndices
+  = QFIxs
+  { graphicsQfIx :: Word32
+  , presentQfIx :: Word32
+  }
 
-    qfProps <- vkGetPhysicalDeviceQueueFamilyProperties physicalDevice
+initQueueFamilies :: MonadIO m => VkSurfaceKHR -> VkPhysicalDevice -> m QueueFamilyIndices
+initQueueFamilies surf physicalDevice = do
+  qfProps <- vkGetPhysicalDeviceQueueFamilyProperties physicalDevice
 
-    graphicsQfIx <-
-      maybe (error "vulkan no suitable queue families") (pure . fromIntegral) $
-      findIndex (elem QueueType.Graphics . queueFlags) qfProps
+  graphicsQfIx <-
+    maybe (error "vulkan no suitable queue families") (pure . fromIntegral) $
+    findIndex (elem QueueType.Graphics . queueFlags) qfProps
 
-    presentQfIx <-
-      maybe (error "vulkan no suitable queue families") (pure . fromIntegral) =<<
-      ifindIndexM
-        (\ix p -> do
-           vkGetPhysicalDeviceSurfaceSupportKHR
-             physicalDevice
-             ix
-             surface)
-        qfProps
+  presentQfIx <-
+    maybe (error "vulkan no suitable queue families") (pure . fromIntegral) =<<
+    ifindIndexM
+      (\ix p -> do
+          vkGetPhysicalDeviceSurfaceSupportKHR
+            physicalDevice
+            ix
+            surf)
+      qfProps
 
-    let
-      deviceInfo =
-        VkDeviceCreateInfo
-        { flags = []
-        , pQueueCreateInfos =
-          foldr
-            (\ix rest ->
-              VkDeviceQueueCreateInfo
-              { flags = []
-              , queueFamilyIndex = ix
-              , queueCount = 1
-              , pQueuePriorities = [1.0]
-              } :
-              rest)
-            []
-            (Set.fromList [graphicsQfIx, presentQfIx])
-        , ppEnabledLayerNames = []
-        , ppEnabledExtensionNames = [Swapchain]
-        , pEnabledFeatures = dFeatures
-        }
+  pure $ QFIxs graphicsQfIx presentQfIx
 
-    device <- vkCreateDevice physicalDevice deviceInfo Foreign.nullPtr
+initDevice :: MonadManaged m => VkPhysicalDevice -> QueueFamilyIndices -> m VkDevice
+initDevice physDevice qfIxs = do
+  dFeatures <- vkGetPhysicalDeviceFeatures physDevice
 
-    graphicsQ <- vkGetDeviceQueue device graphicsQfIx 0
-    presentQ <- vkGetDeviceQueue device presentQfIx 0
-
-    availableFormats <- vkGetPhysicalDeviceSurfaceFormatsKHR physicalDevice surface
-    surfaceFormat <-
-      case availableFormats of
-        [] -> error "vulkan no surface formats"
-        h:_ ->
-          if
-            SurfaceFormat.format h == UNDEFINED ||
-            preferredFormat `elem` availableFormats
-          then pure preferredFormat
-          else error "vulkan couldn't find preferred format"
-
-    availablePresentModes <- vkGetPhysicalDeviceSurfacePresentModesKHR physicalDevice surface
-    surfaceCapabilities <- vkGetPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice surface
-
-    let
-      presentMode = mkPresentMode availablePresentModes
-      swapExtent = mkSwapExtent surfaceCapabilities
-      imageCount = mkImageCount surfaceCapabilities
-
-      swapchainCreateInfo =
-        VkSwapchainCreateInfoKHR
-        { flags = []
-        , surface = surface
-        , minImageCount = imageCount
-        , imageFormat = SurfaceFormat.format surfaceFormat
-        , imageColorSpace = colorSpace surfaceFormat
-        , imageExtent = swapExtent
-        , imageArrayLayers = 1
-        , imageUsage = [ColorAttachment]
-        , imageSharingMode =
-            if graphicsQfIx /= presentQfIx then Concurrent else Exclusive
-        , pQueueFamilyIndices =
-            if graphicsQfIx /= presentQfIx then [graphicsQfIx, presentQfIx] else []
-        , preTransform = currentTransform surfaceCapabilities
-        , compositeAlpha = Opaque
-        , presentMode = presentMode
-        , clipped = True
-        , oldSwapchain = Nothing
-        }
-
-    swapchain <- vkCreateSwapchainKHR device swapchainCreateInfo Foreign.nullPtr
-    images <- vkGetSwapchainImagesKHR device swapchain
-
-    let
-      imageViewCreateInfo img =
-        VkImageViewCreateInfo
-        { flags = []
-        , image = img
-        , viewType = TwoD
-        , format = SurfaceFormat.format surfaceFormat
-        , components =
-            VkComponentMapping
-            { r = SwizzleIdentity
-            , g = SwizzleIdentity
-            , b = SwizzleIdentity
-            , a = SwizzleIdentity
-            }
-        , subresourceRange =
-            VkImageSubresourceRange
-            { aspectMask = [Color]
-            , baseMipLevel = 0
-            , levelCount = 1
-            , baseArrayLayer = 0
-            , layerCount = 1
-            }
-        }
-
-    imageViews <-
-      traverse
-        (\i -> vkCreateImageView device (imageViewCreateInfo i) Foreign.nullPtr)
-        images
-
-    vert <- shaderModuleFromFile "app/shaders/vert.spv" [] device Foreign.nullPtr
-    frag <- shaderModuleFromFile "app/shaders/frag.spv" [] device Foreign.nullPtr
-
-    let
-      layoutInfo =
-        VkPipelineLayoutCreateInfo
-        { flags = []
-        , pSetLayouts = []
-        , pPushConstantRanges = []
-        }
-
-    pipelineLayout <- vkCreatePipelineLayout device layoutInfo Foreign.nullPtr
-
-    let
-      renderPassInfo =
-        VkRenderPassCreateInfo
-        { flags = []
-        , pAttachments =
-          [ VkAttachmentDescription
+  let
+    deviceInfo =
+      VkDeviceCreateInfo
+      { flags = []
+      , pQueueCreateInfos =
+        foldr
+          (\ix rest ->
+            VkDeviceQueueCreateInfo
             { flags = []
-            , format = SurfaceFormat.format surfaceFormat
-            , samples = SC1
-            , loadOp = LoadOp.Clear
-            , storeOp = Store
-            , stencilLoadOp = LoadOp.LoadOpDontCare
-            , stencilStoreOp = StoreOpDontCare
-            , initialLayout = ImageLayout.Undefined
-            , finalLayout = ImageLayout.PresentSrcKHR
-            }
-          ]
-        , pSubpasses =
-          [ VkSubpassDescription
-            { flags = []
-            , pipelineBindPoint = BindPoint.Graphics
-            , pInputAttachments = []
-            , pColorAttachments =
-              [ VkAttachmentReference
-                { attachment = Just 0
-                , layout = ImageLayout.ColorAttachmentOptimal
-                }
-              ]
-            , pResolveAttachments = Nothing
-            , pDepthStencilAttachment = Nothing
-            , pPreserveAttachments = []
-            }
-          ]
-        , pDependencies =
-          [ VkSubpassDependency
-            { srcSubpass = Nothing
-            , dstSubpass = Just 0
-            , srcStageMask = [PipelineStage.ColorAttachmentOutput]
-            , dstStageMask = [PipelineStage.ColorAttachmentOutput]
-            , srcAccessMask = []
-            , dstAccessMask = [Access.ColorAttachmentRead, Access.ColorAttachmentWrite]
-            , dependencyFlags = []
-            }
-          ]
-        }
+            , queueFamilyIndex = ix
+            , queueCount = 1
+            , pQueuePriorities = [1.0]
+            } :
+            rest)
+          []
+          (Set.fromList [graphicsQfIx qfIxs, presentQfIx qfIxs])
+      , ppEnabledLayerNames = []
+      , ppEnabledExtensionNames = [Swapchain]
+      , pEnabledFeatures = dFeatures
+      }
 
-    renderPass <- vkCreateRenderPass device renderPassInfo Foreign.nullPtr
+  vkCreateDevice physDevice deviceInfo Foreign.nullPtr
 
-    let
-      vertShaderStageInfo :: VkPipelineShaderStageCreateInfo '[]
-      vertShaderStageInfo =
-        VkPipelineShaderStageCreateInfo
-        { flags = []
-        , stage = Vertex
-        , module_ = vert
-        , pName = "main"
-        , pSpecializationInfo = Nothing
-        }
+data Queues
+  = Qs
+  { graphicsQ :: VkQueue
+  , presentQ :: VkQueue
+  }
 
-      fragShaderStageInfo :: VkPipelineShaderStageCreateInfo '[]
-      fragShaderStageInfo =
-        VkPipelineShaderStageCreateInfo
-        { flags = []
-        , stage = Fragment
-        , module_ = frag
-        , pName = "main"
-        , pSpecializationInfo = Nothing
-        }
+initQueues :: MonadManaged m => VkDevice -> QueueFamilyIndices -> m Queues
+initQueues device qfIxs = do
+  gq <- vkGetDeviceQueue device (graphicsQfIx qfIxs) 0
+  pq <- vkGetDeviceQueue device (presentQfIx qfIxs) 0
+  pure $ Qs gq pq
 
-      vertexInputInfo =
-        VkPipelineVertexInputStateCreateInfo
-        { flags = []
-        , pVertexBindingDescriptions = []
-        , pVertexAttributeDescriptions = []
-        }
+data SwapchainConfig
+  = SCC
+  { scExtent :: VkExtent2D
+  , scFormat :: VkSurfaceFormatKHR
+  }
 
-      inputAssemblyInfo =
-        VkPipelineInputAssemblyStateCreateInfo
-        { flags = []
-        , topology = TriangleList
-        , primitiveRestartEnable = False
-        }
+initSwapchain ::
+  MonadManaged m =>
+  VkPhysicalDevice ->
+  QueueFamilyIndices ->
+  VkSurfaceKHR ->
+  VkDevice ->
+  m (VkSwapchainKHR, SwapchainConfig)
+initSwapchain physDevice qfIxs surf device = do
+  availableFormats <- vkGetPhysicalDeviceSurfaceFormatsKHR physDevice surf
+  surfaceFormat <-
+    case availableFormats of
+      [] -> error "vulkan no surface formats"
+      h:_ ->
+        if
+          SurfaceFormat.format h == UNDEFINED ||
+          preferredFormat `elem` availableFormats
+        then pure preferredFormat
+        else error "vulkan couldn't find preferred format"
 
-      viewportInfo =
-        VkPipelineViewportStateCreateInfo
-        { flags = []
-        , pViewports =
-          [ VkViewport
-            { x = 0
-            , y = 0
-            , width = fromIntegral $ Extent2D.width swapExtent
-            , height = fromIntegral $ Extent2D.height swapExtent
-            , minDepth = 0
-            , maxDepth = 1
-            }
-          ]
-        , pScissors =
-          [ VkRect2D
-            { offset = VkOffset2D 0 0
-            , extent = swapExtent
-            }
-          ]
-        }
+  availablePresentModes <- vkGetPhysicalDeviceSurfacePresentModesKHR physDevice surf
+  surfaceCapabilities <- vkGetPhysicalDeviceSurfaceCapabilitiesKHR physDevice surf
 
-      rasterizationInfo =
-        VkPipelineRasterizationStateCreateInfo
-        { flags = []
-        , depthClampEnable = False
-        , rasterizerDiscardEnable = False
-        , polygonMode = Fill
-        , cullMode = [Back]
-        , frontFace = Clockwise
-        , depthBiasEnable = False
-        , depthBiasConstantFactor = 0
-        , depthBiasClamp = 0
-        , depthBiasSlopeFactor = 0
-        , lineWidth = 1
-        }
+  let
+    presentMode = mkPresentMode availablePresentModes
+    swapExtent = mkSwapExtent surfaceCapabilities
+    imageCount = mkImageCount surfaceCapabilities
+    differentQfIxs = graphicsQfIx qfIxs /= presentQfIx qfIxs
 
-      multisampleInfo =
-        VkPipelineMultisampleStateCreateInfo
-        { flags = []
-        , rasterizationSamples = SC1
-        , sampleShadingEnable = False
-        , minSampleShading = 0
-        , pSampleMask = Nothing
-        , alphaToCoverageEnable = False
-        , alphaToOneEnable = False
-        }
+    swapchainCreateInfo =
+      VkSwapchainCreateInfoKHR
+      { flags = []
+      , surface = surf
+      , minImageCount = imageCount
+      , imageFormat = SurfaceFormat.format surfaceFormat
+      , imageColorSpace = colorSpace surfaceFormat
+      , imageExtent = swapExtent
+      , imageArrayLayers = 1
+      , imageUsage = [ColorAttachment]
+      , imageSharingMode =
+          if differentQfIxs
+          then Concurrent
+          else Exclusive
+      , pQueueFamilyIndices =
+          if differentQfIxs
+          then [graphicsQfIx qfIxs, presentQfIx qfIxs]
+          else []
+      , preTransform = currentTransform surfaceCapabilities
+      , compositeAlpha = Opaque
+      , presentMode = presentMode
+      , clipped = True
+      , oldSwapchain = Nothing
+      }
 
-      colorBlendInfo =
-        VkPipelineColorBlendStateCreateInfo
-        { flags = []
-        , logicOpEnable = False
-        , logicOp = Copy
-        , pAttachments =
-          [ VkPipelineColorBlendAttachmentState
-            { blendEnable = False
-            , srcColorBlendFactor = One
-            , dstColorBlendFactor = Zero
-            , colorBlendOp = Add
-            , srcAlphaBlendFactor = One
-            , dstAlphaBlendFactor = Zero
-            , alphaBlendOp = Add
-            , colorWriteMask = [R, G, B, A]
-            }
-          ]
-        , blendConstants = (0, 0, 0, 0)
-        }
+  sc <- vkCreateSwapchainKHR device swapchainCreateInfo Foreign.nullPtr
+  pure (sc, SCC swapExtent surfaceFormat)
 
-      pipelineInfo =
-        VkGraphicsPipelineCreateInfo
-        { flags = []
-        , pStages =
-          Stages.Cons vertShaderStageInfo $
-          Stages.Cons fragShaderStageInfo $
-          Stages.Nil
-        , pVertexInputState = Just vertexInputInfo
-        , pInputAssemblyState = Just inputAssemblyInfo
-        , pTessellationState = Nothing
-        , pViewportState = Just viewportInfo
-        , pRasterizationState = Just rasterizationInfo
-        , pMultisampleState = Just multisampleInfo
-        , pDepthStencilState = Nothing
-        , pColorBlendState = Just colorBlendInfo
-        , pDynamicState = Nothing
-        , layout = pipelineLayout
-        , renderPass = renderPass
-        , subpass = 0
-        , basePipelineHandle = Nothing
-        , basePipelineIndex = Nothing
-        }
-
-    pipeline <-
-      fmap (\case; [] -> error "vulkan no graphics pipeline"; p:_ -> p) $
-      vkCreateGraphicsPipelines device Nothing [Some pipelineInfo] Foreign.nullPtr
-
-    framebuffers <- for imageViews $ \imageView -> do
-      let
-        framebufferInfo =
-          VkFramebufferCreateInfo
-          { flags = []
-          , renderPass = renderPass
-          , pAttachments = [imageView]
-          , width = Extent2D.width swapExtent
-          , height = Extent2D.height swapExtent
-          , layers = 1
-          }
-      vkCreateFramebuffer device framebufferInfo Foreign.nullPtr
-
-    let
-      commandPoolInfo =
-        VkCommandPoolCreateInfo
-        { flags = []
-        , queueFamilyIndex = graphicsQfIx
-        }
-
-    commandPool <- vkCreateCommandPool device commandPoolInfo Foreign.nullPtr
-
-    let
-      commandBufferInfo =
-        VkCommandBufferAllocateInfo
-        { commandPool = commandPool
-        , level = Primary
-        , commandBufferCount = fromIntegral $ length framebuffers
-        }
-
-    commandBuffers <- vkAllocateCommandBuffers device commandBufferInfo
-
-    for_ (zip commandBuffers framebuffers) $ \(cmdBuf, fbuf) -> do
-      let
-        beginInfo =
-          VkCommandBufferBeginInfo
-          { flags = [SimultaneousUse]
-          , pInheritanceInfo = Nothing
-          }
-
-        renderPassBeginInfo =
-          VkRenderPassBeginInfo
-          { renderPass = renderPass
-          , framebuffer = fbuf
-          , renderArea = VkRect2D (VkOffset2D 0 0) swapExtent
-          , pClearValues = [ClearValue.Color (ClearValue.Float32 1 1 1 1)]
-          }
-
-      withCommandBuffer cmdBuf beginInfo $
-        withCmdRenderPass cmdBuf renderPassBeginInfo Subpass.Inline $ do
-          vkCmdBindPipeline cmdBuf BindPoint.Graphics pipeline
-          vkCmdDraw cmdBuf 3 1 0 0
-
-    imageAvailableSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
-    renderFinishedSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
-
-    mainLoop window device swapchain graphicsQ presentQ commandBuffers imageAvailableSem renderFinishedSem
   where
-    hints =
-      [ WindowHint'ClientAPI ClientAPI'NoAPI
-      , WindowHint'Resizable False
-      ]
 
     preferredFormat =
       VkSurfaceFormatKHR
@@ -689,3 +451,351 @@ main =
                (Extent2D.height $ maxImageExtent scs)
                (Extent2D.height $ currentExtent scs))
       }
+
+initImageViews :: MonadManaged m => VkDevice -> VkSwapchainKHR -> SwapchainConfig -> m [VkImageView]
+initImageViews device swapchain scConfig = do
+  images <- vkGetSwapchainImagesKHR device swapchain
+
+  let
+    imageViewCreateInfo img =
+      VkImageViewCreateInfo
+      { flags = []
+      , image = img
+      , viewType = TwoD
+      , format = SurfaceFormat.format $ scFormat scConfig
+      , components =
+          VkComponentMapping
+          { r = SwizzleIdentity
+          , g = SwizzleIdentity
+          , b = SwizzleIdentity
+          , a = SwizzleIdentity
+          }
+      , subresourceRange =
+          VkImageSubresourceRange
+          { aspectMask = [Color]
+          , baseMipLevel = 0
+          , levelCount = 1
+          , baseArrayLayer = 0
+          , layerCount = 1
+          }
+      }
+
+  traverse
+    (\i -> vkCreateImageView device (imageViewCreateInfo i) Foreign.nullPtr)
+    images
+
+initPipelineLayout :: MonadManaged m => VkDevice -> m VkPipelineLayout
+initPipelineLayout device = do
+  let
+    layoutInfo =
+      VkPipelineLayoutCreateInfo
+      { flags = []
+      , pSetLayouts = []
+      , pPushConstantRanges = []
+      }
+
+  vkCreatePipelineLayout device layoutInfo Foreign.nullPtr
+
+initRenderPass :: MonadManaged m => VkDevice -> SwapchainConfig -> m VkRenderPass
+initRenderPass device scConfig = do
+  let
+    renderPassInfo =
+      VkRenderPassCreateInfo
+      { flags = []
+      , pAttachments =
+        [ VkAttachmentDescription
+          { flags = []
+          , format = SurfaceFormat.format $ scFormat scConfig
+          , samples = SC1
+          , loadOp = LoadOp.Clear
+          , storeOp = Store
+          , stencilLoadOp = LoadOp.LoadOpDontCare
+          , stencilStoreOp = StoreOpDontCare
+          , initialLayout = ImageLayout.Undefined
+          , finalLayout = ImageLayout.PresentSrcKHR
+          }
+        ]
+      , pSubpasses =
+        [ VkSubpassDescription
+          { flags = []
+          , pipelineBindPoint = BindPoint.Graphics
+          , pInputAttachments = []
+          , pColorAttachments =
+            [ VkAttachmentReference
+              { attachment = Just 0
+              , layout = ImageLayout.ColorAttachmentOptimal
+              }
+            ]
+          , pResolveAttachments = Nothing
+          , pDepthStencilAttachment = Nothing
+          , pPreserveAttachments = []
+          }
+        ]
+      , pDependencies =
+        [ VkSubpassDependency
+          { srcSubpass = Nothing
+          , dstSubpass = Just 0
+          , srcStageMask = [PipelineStage.ColorAttachmentOutput]
+          , dstStageMask = [PipelineStage.ColorAttachmentOutput]
+          , srcAccessMask = []
+          , dstAccessMask = [Access.ColorAttachmentRead, Access.ColorAttachmentWrite]
+          , dependencyFlags = []
+          }
+        ]
+      }
+
+  vkCreateRenderPass device renderPassInfo Foreign.nullPtr
+
+initPipeline ::
+  MonadManaged m =>
+  VkDevice ->
+  VkShaderModule ->
+  VkShaderModule ->
+  SwapchainConfig ->
+  VkPipelineLayout ->
+  VkRenderPass ->
+  m VkPipeline
+initPipeline device vert frag scConfig pipelineLayout renderPass = do
+  let
+    vertShaderStageInfo :: VkPipelineShaderStageCreateInfo '[]
+    vertShaderStageInfo =
+      VkPipelineShaderStageCreateInfo
+      { flags = []
+      , stage = Vertex
+      , module_ = vert
+      , pName = "main"
+      , pSpecializationInfo = Nothing
+      }
+
+    fragShaderStageInfo :: VkPipelineShaderStageCreateInfo '[]
+    fragShaderStageInfo =
+      VkPipelineShaderStageCreateInfo
+      { flags = []
+      , stage = Fragment
+      , module_ = frag
+      , pName = "main"
+      , pSpecializationInfo = Nothing
+      }
+
+    vertexInputInfo =
+      VkPipelineVertexInputStateCreateInfo
+      { flags = []
+      , pVertexBindingDescriptions = []
+      , pVertexAttributeDescriptions = []
+      }
+
+    inputAssemblyInfo =
+      VkPipelineInputAssemblyStateCreateInfo
+      { flags = []
+      , topology = TriangleList
+      , primitiveRestartEnable = False
+      }
+
+    viewportInfo =
+      VkPipelineViewportStateCreateInfo
+      { flags = []
+      , pViewports =
+        [ VkViewport
+          { x = 0
+          , y = 0
+          , width = fromIntegral . Extent2D.width $ scExtent scConfig
+          , height = fromIntegral . Extent2D.height $ scExtent scConfig
+          , minDepth = 0
+          , maxDepth = 1
+          }
+        ]
+      , pScissors =
+        [ VkRect2D
+          { offset = VkOffset2D 0 0
+          , extent = scExtent scConfig
+          }
+        ]
+      }
+
+    rasterizationInfo =
+      VkPipelineRasterizationStateCreateInfo
+      { flags = []
+      , depthClampEnable = False
+      , rasterizerDiscardEnable = False
+      , polygonMode = Fill
+      , cullMode = [Back]
+      , frontFace = Clockwise
+      , depthBiasEnable = False
+      , depthBiasConstantFactor = 0
+      , depthBiasClamp = 0
+      , depthBiasSlopeFactor = 0
+      , lineWidth = 1
+      }
+
+    multisampleInfo =
+      VkPipelineMultisampleStateCreateInfo
+      { flags = []
+      , rasterizationSamples = SC1
+      , sampleShadingEnable = False
+      , minSampleShading = 0
+      , pSampleMask = Nothing
+      , alphaToCoverageEnable = False
+      , alphaToOneEnable = False
+      }
+
+    colorBlendInfo =
+      VkPipelineColorBlendStateCreateInfo
+      { flags = []
+      , logicOpEnable = False
+      , logicOp = Copy
+      , pAttachments =
+        [ VkPipelineColorBlendAttachmentState
+          { blendEnable = False
+          , srcColorBlendFactor = One
+          , dstColorBlendFactor = Zero
+          , colorBlendOp = Add
+          , srcAlphaBlendFactor = One
+          , dstAlphaBlendFactor = Zero
+          , alphaBlendOp = Add
+          , colorWriteMask = [R, G, B, A]
+          }
+        ]
+      , blendConstants = (0, 0, 0, 0)
+      }
+
+    pipelineInfo =
+      VkGraphicsPipelineCreateInfo
+      { flags = []
+      , pStages =
+        Stages.Cons vertShaderStageInfo $
+        Stages.Cons fragShaderStageInfo $
+        Stages.Nil
+      , pVertexInputState = Just vertexInputInfo
+      , pInputAssemblyState = Just inputAssemblyInfo
+      , pTessellationState = Nothing
+      , pViewportState = Just viewportInfo
+      , pRasterizationState = Just rasterizationInfo
+      , pMultisampleState = Just multisampleInfo
+      , pDepthStencilState = Nothing
+      , pColorBlendState = Just colorBlendInfo
+      , pDynamicState = Nothing
+      , layout = pipelineLayout
+      , renderPass = renderPass
+      , subpass = 0
+      , basePipelineHandle = Nothing
+      , basePipelineIndex = Nothing
+      }
+
+  fmap (\case; [] -> error "vulkan no graphics pipeline"; p:_ -> p) $
+    vkCreateGraphicsPipelines device Nothing [Some pipelineInfo] Foreign.nullPtr
+
+initFramebuffers ::
+  MonadManaged m =>
+  VkDevice ->
+  [VkImageView] ->
+  VkRenderPass ->
+  SwapchainConfig ->
+  m [VkFramebuffer]
+initFramebuffers device imageViews renderPass scConfig =
+  for imageViews $ \imageView -> do
+    let
+      framebufferInfo =
+        VkFramebufferCreateInfo
+        { flags = []
+        , renderPass = renderPass
+        , pAttachments = [imageView]
+        , width = Extent2D.width $ scExtent scConfig
+        , height = Extent2D.height $ scExtent scConfig
+        , layers = 1
+        }
+    vkCreateFramebuffer device framebufferInfo Foreign.nullPtr
+
+initCommandPool :: MonadManaged m => VkDevice -> Word32 -> m VkCommandPool
+initCommandPool device ix = do
+  let
+    commandPoolInfo =
+      VkCommandPoolCreateInfo
+      { flags = []
+      , queueFamilyIndex = ix
+      }
+
+  vkCreateCommandPool device commandPoolInfo Foreign.nullPtr
+
+initCommandBuffers ::
+  MonadManaged m =>
+  VkDevice ->
+  VkCommandPool ->
+  [VkFramebuffer] ->
+  VkRenderPass ->
+  SwapchainConfig ->
+  VkPipeline ->
+  m [VkCommandBuffer]
+initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline = do
+  let
+    commandBufferInfo =
+      VkCommandBufferAllocateInfo
+      { commandPool = commandPool
+      , level = Primary
+      , commandBufferCount = fromIntegral $ length framebuffers
+      }
+
+  commandBuffers <- vkAllocateCommandBuffers device commandBufferInfo
+
+  for_ (zip commandBuffers framebuffers) $ \(cmdBuf, fbuf) -> do
+    let
+      beginInfo =
+        VkCommandBufferBeginInfo
+        { flags = [SimultaneousUse]
+        , pInheritanceInfo = Nothing
+        }
+
+      renderPassBeginInfo =
+        VkRenderPassBeginInfo
+        { renderPass = renderPass
+        , framebuffer = fbuf
+        , renderArea = VkRect2D (VkOffset2D 0 0) (scExtent scConfig)
+        , pClearValues = [ClearValue.Color (ClearValue.Float32 1 1 1 1)]
+        }
+
+    withCommandBuffer cmdBuf beginInfo $
+      withCmdRenderPass cmdBuf renderPassBeginInfo Subpass.Inline $ do
+        vkCmdBindPipeline cmdBuf BindPoint.Graphics pipeline
+        vkCmdDraw cmdBuf 3 1 0 0
+
+  pure commandBuffers
+
+main :: IO ()
+main =
+  vulkanGLFW . runManaged $ do
+    window <- mkWindow hints 1280 960 "vulkan" Nothing Nothing
+
+    instance_ <- initInstance
+    messenger <- initDebugMessenger instance_
+    surface <- glfwCreateWindowSurface instance_ window Foreign.nullPtr
+    physicalDevice <- initPhysicalDevice instance_
+
+    qfIxs <- initQueueFamilies surface physicalDevice
+
+    device <- initDevice physicalDevice qfIxs
+
+    qs <- initQueues device qfIxs
+
+    (swapchain, scConfig) <- initSwapchain physicalDevice qfIxs surface device
+
+    imageViews <- initImageViews device swapchain scConfig
+
+    vert <- shaderModuleFromFile "app/shaders/vert.spv" [] device Foreign.nullPtr
+    frag <- shaderModuleFromFile "app/shaders/frag.spv" [] device Foreign.nullPtr
+
+    renderPass <- initRenderPass device scConfig
+    pipelineLayout <- initPipelineLayout device
+    pipeline <- initPipeline device vert frag scConfig pipelineLayout renderPass
+    framebuffers <- initFramebuffers device imageViews renderPass scConfig
+    commandPool <- initCommandPool device (graphicsQfIx qfIxs)
+    commandBuffers <-
+      initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline
+
+    imageAvailableSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
+    renderFinishedSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
+
+    mainLoop window device swapchain qs commandBuffers imageAvailableSem renderFinishedSem
+  where
+    hints =
+      [ WindowHint'ClientAPI ClientAPI'NoAPI
+      , WindowHint'Resizable False
+      ]
