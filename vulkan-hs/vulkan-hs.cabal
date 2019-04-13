@@ -40,6 +40,7 @@ library
     Graphics.Vulkan.Ext.Surface
     Graphics.Vulkan.Ext.Swapchain
     Graphics.Vulkan.Extent
+    Graphics.Vulkan.Fence
     Graphics.Vulkan.Format
     Graphics.Vulkan.Framebuffer
     Graphics.Vulkan.FramebufferCreateInfo

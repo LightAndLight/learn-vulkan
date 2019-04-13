@@ -9,7 +9,7 @@
 module Main where
 
 import Control.Exception (Exception(..), bracket, throwIO)
-import Control.Monad (unless)
+import Control.Monad (unless, replicateM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
 import Data.Foldable (fold, for_, traverse_)
@@ -80,6 +80,12 @@ import Graphics.Vulkan.Ext.Swapchain
   )
 import Graphics.Vulkan.Extent (VkExtent2D(..))
 import Graphics.Vulkan.Format (VkFormat(..))
+import Graphics.Vulkan.Fence
+  (VkFence, VkFenceCreateInfo(..), VkFenceCreateFlag(..)
+  , vkCreateFence
+  , vkWaitForFences
+  , vkResetFences
+  )
 import Graphics.Vulkan.Framebuffer (VkFramebuffer, vkCreateFramebuffer)
 import Graphics.Vulkan.FramebufferCreateInfo (VkFramebufferCreateInfo(..))
 import Graphics.Vulkan.GraphicsPipelineCreateInfo (VkGraphicsPipelineCreateInfo(..))
@@ -161,6 +167,9 @@ import qualified Graphics.Vulkan.PipelineStage as PipelineStage (VkPipelineStage
 import qualified Graphics.Vulkan.SubpassContents as Subpass (VkSubpassContents(..))
 import qualified Graphics.Vulkan.Queue as QueueType (VkQueueType(..))
 
+framesInFlight :: Int
+framesInFlight = 2
+
 mainLoop ::
   MonadIO m =>
   GLFW.Window ->
@@ -168,18 +177,22 @@ mainLoop ::
   VkSwapchainKHR ->
   Queues ->
   [VkCommandBuffer] ->
-  VkSemaphore ->
-  VkSemaphore ->
+  [(VkSemaphore, VkSemaphore, VkFence)] ->
   m ()
-mainLoop window device swapchain qs commandBuffers imageAvailableSem renderFinishedSem = go
+mainLoop window device swapchain qs commandBuffers syncObjects = go $ cycle syncObjects
   where
-    go = do
+    go ((imageAvailableSem, renderFinishedSem, inFlightFence) : rest) = do
       close <- liftIO $ GLFW.windowShouldClose window
       if close
         then vkDeviceWaitIdle device
         else do
           liftIO GLFW.pollEvents
+
+          vkWaitForFences device [inFlightFence] True maxBound
+          vkResetFences device [inFlightFence]
+
           ix <- vkAcquireNextImageKHR device swapchain maxBound (Just imageAvailableSem) Nothing
+
           let
             submitInfo =
               VkSubmitInfo
@@ -188,7 +201,7 @@ mainLoop window device swapchain qs commandBuffers imageAvailableSem renderFinis
               , pCommandBuffers = [commandBuffers !! fromIntegral ix]
               , pSignalSemaphores = [renderFinishedSem]
               }
-          vkQueueSubmit (graphicsQ qs) [submitInfo] Nothing
+          vkQueueSubmit (graphicsQ qs) [submitInfo] (Just inFlightFence)
           let
             presentInfo =
               VkPresentInfoKHR
@@ -197,7 +210,7 @@ mainLoop window device swapchain qs commandBuffers imageAvailableSem renderFinis
               , pImageIndices = [ix]
               }
           vkQueuePresentKHR (presentQ qs) presentInfo
-          go
+          go rest
 
 vulkanGLFW :: IO a -> IO a
 vulkanGLFW m = do
@@ -759,6 +772,14 @@ initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline 
 
   pure commandBuffers
 
+initSyncObjects :: MonadManaged m => VkDevice -> m [(VkSemaphore, VkSemaphore, VkFence)]
+initSyncObjects dev =
+  replicateM framesInFlight $ do
+    iaSem <- vkCreateSemaphore dev (VkSemaphoreCreateInfo []) Foreign.nullPtr
+    rfSem <- vkCreateSemaphore dev (VkSemaphoreCreateInfo []) Foreign.nullPtr
+    fence <- vkCreateFence dev (VkFenceCreateInfo [Signaled]) Foreign.nullPtr
+    pure (iaSem, rfSem, fence)
+
 main :: IO ()
 main =
   vulkanGLFW . runManaged $ do
@@ -790,10 +811,9 @@ main =
     commandBuffers <-
       initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline
 
-    imageAvailableSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
-    renderFinishedSem <- vkCreateSemaphore device (VkSemaphoreCreateInfo []) Foreign.nullPtr
+    syncObjects <- initSyncObjects device
 
-    mainLoop window device swapchain qs commandBuffers imageAvailableSem renderFinishedSem
+    mainLoop window device swapchain qs commandBuffers syncObjects
   where
     hints =
       [ WindowHint'ClientAPI ClientAPI'NoAPI
