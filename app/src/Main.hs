@@ -13,6 +13,7 @@ import Control.Exception (Exception(..), bracket, throwIO, catch)
 import Control.Monad (unless, replicateM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
+import Data.Bits ((.&.), shiftL)
 import Data.Foldable (fold, for_, traverse_)
 import Data.Int (Int32, Int64)
 import Data.List (findIndex)
@@ -33,6 +34,10 @@ import qualified Graphics.UI.GLFW as GLFW
 
 import Data.Some (Some(..))
 import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
+import Graphics.Vulkan.Buffer
+  ( VkBuffer, vkCreateBuffer, VkBufferCreateInfo(..), VkBufferUsageFlag(..)
+  , vkGetBufferMemoryRequirements
+  )
 import Graphics.Vulkan.CommandBuffer
   ( VkCommandBuffer
   , VkCommandBufferAllocateInfo(..), VkCommandBufferLevel(..), vkAllocateCommandBuffers
@@ -92,7 +97,7 @@ import Graphics.Vulkan.Framebuffer (VkFramebuffer, vkCreateFramebuffer)
 import Graphics.Vulkan.FramebufferCreateInfo (VkFramebufferCreateInfo(..))
 import Graphics.Vulkan.GraphicsPipelineCreateInfo (VkGraphicsPipelineCreateInfo(..))
 import Graphics.Vulkan.GraphicsPipeline (VkPipeline, vkCreateGraphicsPipelines)
-import Graphics.Vulkan.ImageCreateInfo (VkSharingMode(..), VkImageUsageFlag(..))
+import Graphics.Vulkan.ImageCreateInfo (VkImageUsageFlag(..))
 import Graphics.Vulkan.ImageView (VkImageView, vkCreateImageView)
 import Graphics.Vulkan.ImageViewCreateInfo
   ( VkImageViewCreateInfo(..), VkImageSubresourceRange(..), VkComponentMapping(..)
@@ -103,13 +108,17 @@ import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer
   ( VkLayer(..), vkLayer, unVkLayer
   )
+import Graphics.Vulkan.MemoryRequirements (VkMemoryRequirements(..))
 import Graphics.Vulkan.Offset (VkOffset2D(..))
 import Graphics.Vulkan.PhysicalDevice
   ( VkPhysicalDevice
+  , VkPhysicalDeviceMemoryProperties(..)
+  , VkMemoryPropertyFlag(..), VkMemoryType(..)
   , vkEnumeratePhysicalDevices
   , vkGetPhysicalDeviceProperties
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
+  , vkGetPhysicalDeviceMemoryProperties
   )
 import Graphics.Vulkan.Pipeline.ColorBlendAttachmentState
   ( VkPipelineColorBlendAttachmentState(..)
@@ -132,7 +141,11 @@ import Graphics.Vulkan.Pipeline.RasterizationStateCreateInfo
 import Graphics.Vulkan.Pipeline.ShaderStageCreateInfo
   ( VkPipelineShaderStageCreateInfo(..)
   )
-import Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo (VkPipelineVertexInputStateCreateInfo(..))
+import Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo
+  ( VkPipelineVertexInputStateCreateInfo(..)
+  , VkVertexInputBindingDescription(..)
+  , VkVertexInputAttributeDescription(..)
+  )
 import Graphics.Vulkan.Pipeline.ViewportStateCreateInfo (VkPipelineViewportStateCreateInfo(..))
 import Graphics.Vulkan.Pipeline.InputAssemblyStateCreateInfo
   (VkPipelineInputAssemblyStateCreateInfo(..), VkPrimitiveTopology(..))
@@ -151,7 +164,7 @@ import Graphics.Vulkan.Result (VkError(..), vkResult)
 import Graphics.Vulkan.SampleCount (VkSampleCount(..))
 import Graphics.Vulkan.Semaphore (VkSemaphore, VkSemaphoreCreateInfo(..), vkCreateSemaphore)
 import Graphics.Vulkan.ShaderModule (VkShaderModule, shaderModuleFromFile)
-import Graphics.Vulkan.ShaderStage (VkShaderStageFlag(..))
+import Graphics.Vulkan.SharingMode (VkSharingMode(..))
 import Graphics.Vulkan.Version (_VK_MAKE_VERSION)
 import Graphics.Vulkan.Viewport (VkViewport(..))
 
@@ -165,9 +178,14 @@ import qualified Graphics.Vulkan.Ext.DebugUtils as MessageType (VkDebugUtilsMess
 import qualified Graphics.Vulkan.GraphicsPipelineCreateInfo as Stages (Stages(..))
 import qualified Graphics.Vulkan.RenderPassCreateInfo as LoadOp (VkAttachmentLoadOp(..))
 import qualified Graphics.Vulkan.Pipeline.BindPoint as BindPoint (VkPipelineBindPoint(..))
+import qualified Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo as InputRate
+  (VkVertexInputRate(..))
 import qualified Graphics.Vulkan.PipelineStage as PipelineStage (VkPipelineStageFlag(..))
+import qualified Graphics.Vulkan.ShaderStage as ShaderStage (VkShaderStageFlag(..))
 import qualified Graphics.Vulkan.SubpassContents as Subpass (VkSubpassContents(..))
 import qualified Graphics.Vulkan.Queue as QueueType (VkQueueType(..))
+
+import Vertex
 
 framesInFlight :: Int
 framesInFlight = 2
@@ -600,7 +618,7 @@ initPipeline device vert frag scConfig pipelineLayout renderPass = do
     vertShaderStageInfo =
       VkPipelineShaderStageCreateInfo
       { flags = []
-      , stage = Vertex
+      , stage = ShaderStage.Vertex
       , module_ = vert
       , pName = "main"
       , pSpecializationInfo = Nothing
@@ -610,7 +628,7 @@ initPipeline device vert frag scConfig pipelineLayout renderPass = do
     fragShaderStageInfo =
       VkPipelineShaderStageCreateInfo
       { flags = []
-      , stage = Fragment
+      , stage = ShaderStage.Fragment
       , module_ = frag
       , pName = "main"
       , pSpecializationInfo = Nothing
@@ -619,8 +637,27 @@ initPipeline device vert frag scConfig pipelineLayout renderPass = do
     vertexInputInfo =
       VkPipelineVertexInputStateCreateInfo
       { flags = []
-      , pVertexBindingDescriptions = []
-      , pVertexAttributeDescriptions = []
+      , pVertexBindingDescriptions =
+        [ VkVertexInputBindingDescription
+          { binding = 0
+          , stride = vertexStride
+          , inputRate = InputRate.Vertex
+          }
+        ]
+      , pVertexAttributeDescriptions =
+        [ VkVertexInputAttributeDescription
+          { location = 0
+          , binding = 0
+          , format = R32G32_SFLOAT
+          , offset = vPosOffset
+          }
+        , VkVertexInputAttributeDescription
+          { location = 1
+          , binding = 0
+          , format = R32G32B32_SFLOAT
+          , offset = vColorOffset
+          }
+        ]
       }
 
     inputAssemblyInfo =
@@ -754,6 +791,40 @@ initCommandPool device ix = do
       }
 
   vkCreateCommandPool device commandPoolInfo Foreign.nullPtr
+
+initVertexBuffer :: MonadManaged m => VkPhysicalDevice -> VkDevice -> m VkBuffer
+initVertexBuffer physDev dev = do
+  let
+    bufferInfo =
+      VkBufferCreateInfo
+      { flags = []
+      , size = _
+      , usage = [VertexBuffer]
+      , sharingMode = Exclusive
+      , pQueueFamilyIndices = []
+      }
+  buffer <- vkCreateBuffer dev bufferInfo Foreign.nullPtr
+  memRequirements <- vkGetBufferMemoryRequirements dev buffer
+  let reqTypeBits = memoryTypeBits memRequirements
+
+  memProperties <- vkGetPhysicalDeviceMemoryProperties physDev
+
+  let
+    m_ix =
+      foldr
+        (\(ix, prop) rest ->
+           if
+             reqTypeBits .&. 1 `shiftL` ix == reqTypeBits &&
+             all (`elem` propertyFlags prop) [HostVisible, HostCoherent]
+           then Just ix
+           else rest)
+        Nothing
+        (zip [0..] $ memoryTypes memProperties)
+
+  case m_ix of
+    Nothing -> error "No suitable memory type"
+    Just ix -> do
+      pure buffer
 
 initCommandBuffers ::
   MonadManaged m =>

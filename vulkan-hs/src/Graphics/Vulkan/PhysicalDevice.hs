@@ -1,10 +1,12 @@
 {-# language DataKinds, TypeApplications #-}
+{-# language ViewPatterns #-}
 module Graphics.Vulkan.PhysicalDevice
-  ( vkEnumeratePhysicalDevices
+  ( Vk.VkPhysicalDevice
+  , vkEnumeratePhysicalDevices
   , vkGetPhysicalDeviceProperties
   , vkGetPhysicalDeviceFeatures
   , vkGetPhysicalDeviceQueueFamilyProperties
-  , Vk.VkPhysicalDevice
+  , vkGetPhysicalDeviceMemoryProperties
   , VkPhysicalDeviceType(..)
   , vkPhysicalDeviceType, unVkPhysicalDeviceType
   , VkPhysicalDeviceProperties(..)
@@ -13,15 +15,24 @@ module Graphics.Vulkan.PhysicalDevice
   , Vk.VkDeviceSize(..)
   , VkPhysicalDeviceFeatures(..)
   , vkPhysicalDeviceFeatures, unVkPhysicalDeviceFeatures
+  , VkPhysicalDeviceMemoryProperties(..), vkPhysicalDeviceMemoryProperties
+  , VkMemoryPropertyFlag(..), vkMemoryPropertyFlagBit, vkMemoryPropertyFlagBits
+  , VkMemoryType(..), vkMemoryType
+  , VkMemoryHeapFlag(..), vkMemoryHeapFlagBit, vkMemoryHeapFlagBits
+  , VkMemoryHeap(..), vkMemoryHeap
   )
 where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Bits ((.&.))
 import Data.Int (Int32)
 import Data.Word (Word8, Word32)
+import Unsafe.Coerce (unsafeCoerce)
 
 import qualified Graphics.Vulkan.Constants as Vk
 import qualified Graphics.Vulkan.Core_1_0 as Vk
+import qualified Graphics.Vulkan.Core_1_1 as Vk
+import qualified Graphics.Vulkan.Ext.VK_KHR_device_group_creation as Vk
 import qualified Foreign.C.Types as Foreign
 import qualified Foreign.Marshal.Alloc as Foreign
 import qualified Foreign.Marshal.Array as Foreign
@@ -677,3 +688,133 @@ vkGetPhysicalDeviceQueueFamilyProperties p =
     Foreign.allocaArray count $ \arrayPtr -> do
       Vk.vkGetPhysicalDeviceQueueFamilyProperties p countPtr arrayPtr
       fmap vkQueueFamilyProperties <$> Foreign.peekArray count arrayPtr
+
+data VkMemoryPropertyFlag
+  = DeviceLocal
+  | HostVisible
+  | HostCoherent
+  | HostCached
+  | LazilyAllocated
+  | Protected
+  deriving (Eq, Ord, Show)
+
+vkMemoryPropertyFlagBit ::
+  Vk.VkMemoryPropertyBitmask a ->
+  VkMemoryPropertyFlag
+vkMemoryPropertyFlagBit a =
+  case a of
+    Vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT ->
+      DeviceLocal
+    Vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT ->
+      HostVisible
+    Vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT ->
+      HostCoherent
+    Vk.VK_MEMORY_PROPERTY_HOST_CACHED_BIT ->
+      HostCached
+    Vk.VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT ->
+      LazilyAllocated
+    (unsafeCoerce -> Vk.VK_MEMORY_PROPERTY_PROTECTED_BIT) ->
+      Protected
+
+vkMemoryPropertyFlagBits ::
+  Vk.VkMemoryPropertyFlags ->
+  [VkMemoryPropertyFlag]
+vkMemoryPropertyFlagBits fs =
+  foldr (\(f, a) -> if fs .&. f == f then (a :) else id) []
+  [ (Vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, DeviceLocal)
+  , (Vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, HostVisible)
+  , (Vk.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, HostCoherent)
+  , (Vk.VK_MEMORY_PROPERTY_HOST_CACHED_BIT, HostCached)
+  , (Vk.VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT, LazilyAllocated)
+  , (unsafeCoerce Vk.VK_MEMORY_PROPERTY_PROTECTED_BIT, Protected)
+  ]
+
+data VkMemoryType
+  = VkMemoryType
+  { propertyFlags :: [VkMemoryPropertyFlag]
+  , heapIndex :: Word32
+  } deriving (Eq, Ord, Show)
+
+vkMemoryType ::
+  Vk.VkMemoryType ->
+  VkMemoryType
+vkMemoryType a =
+  VkMemoryType
+  { propertyFlags = vkMemoryPropertyFlagBits $ Vk.getField @"propertyFlags" a
+  , heapIndex = Vk.getField @"heapIndex" a
+  }
+
+data VkMemoryHeapFlag
+  = DeviceLocalHeap
+  | MultiInstance
+  | MultiInstanceKHR
+  deriving (Eq, Ord, Show)
+
+vkMemoryHeapFlagBit ::
+  Vk.VkMemoryHeapBitmask a ->
+  VkMemoryHeapFlag
+vkMemoryHeapFlagBit a =
+  case a of
+    Vk.VK_MEMORY_HEAP_DEVICE_LOCAL_BIT -> DeviceLocalHeap
+    (unsafeCoerce -> Vk.VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) -> MultiInstance
+    (unsafeCoerce -> Vk.VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR) -> MultiInstanceKHR
+
+vkMemoryHeapFlagBits ::
+  Vk.VkMemoryHeapFlags ->
+  [VkMemoryHeapFlag]
+vkMemoryHeapFlagBits fs =
+  foldr (\(f, a) -> if fs .&. f == f then (a :) else id) []
+  [ (Vk.VK_MEMORY_HEAP_DEVICE_LOCAL_BIT, DeviceLocalHeap)
+  , (unsafeCoerce Vk.VK_MEMORY_HEAP_MULTI_INSTANCE_BIT, MultiInstance)
+  , (unsafeCoerce Vk.VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR, MultiInstanceKHR)
+  ]
+
+data VkMemoryHeap
+  = VkMemoryHeap
+  { size :: Vk.VkDeviceSize
+  , flags :: [VkMemoryHeapFlag]
+  } deriving (Eq, Ord, Show)
+
+vkMemoryHeap ::
+  Vk.VkMemoryHeap ->
+  VkMemoryHeap
+vkMemoryHeap a =
+  VkMemoryHeap
+  { size = Vk.getField @"size" a
+  , flags = vkMemoryHeapFlagBits $ Vk.getField @"flags" a
+  }
+
+data VkPhysicalDeviceMemoryProperties
+  = VkPhysicalDeviceMemoryProperties
+  { memoryTypes :: [VkMemoryType]
+  , memoryHeaps :: [VkMemoryHeap]
+  } deriving (Eq, Ord, Show)
+
+vkPhysicalDeviceMemoryProperties ::
+  MonadIO m =>
+  Vk.VkPhysicalDeviceMemoryProperties ->
+  m VkPhysicalDeviceMemoryProperties
+vkPhysicalDeviceMemoryProperties a =
+  liftIO $
+  VkPhysicalDeviceMemoryProperties <$>
+  fmap (fmap vkMemoryType)
+    (Foreign.peekArray
+       (fromIntegral $ Vk.getField @"memoryTypeCount" a) $
+       (aPtr `Foreign.plusPtr`
+        Vk.fieldOffset @"memoryTypes" @Vk.VkPhysicalDeviceMemoryProperties)) <*>
+  fmap (fmap vkMemoryHeap)
+    (Foreign.peekArray
+       (fromIntegral $ Vk.getField @"memoryHeapCount" a) $
+       (aPtr `Foreign.plusPtr`
+        Vk.fieldOffset @"memoryHeaps" @Vk.VkPhysicalDeviceMemoryProperties))
+  where
+    aPtr = Vk.unsafePtr a
+
+vkGetPhysicalDeviceMemoryProperties ::
+  MonadIO m =>
+  Vk.VkPhysicalDevice ->
+  m VkPhysicalDeviceMemoryProperties
+vkGetPhysicalDeviceMemoryProperties physDev =
+  liftIO . Foreign.alloca $ \ptr -> do
+    Vk.vkGetPhysicalDeviceMemoryProperties physDev ptr
+    vkPhysicalDeviceMemoryProperties =<< Foreign.peek ptr

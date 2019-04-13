@@ -22,6 +22,7 @@ library
     Data.Type.Function
     Graphics.Vulkan.Access
     Graphics.Vulkan.ApplicationInfo
+    Graphics.Vulkan.Buffer
     Graphics.Vulkan.ClearValue
     Graphics.Vulkan.CommandBuffer
     Graphics.Vulkan.CommandPool
@@ -60,6 +61,7 @@ library
     Graphics.Vulkan.Layer.VK_LAYER_LUNARG_object_tracker
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_threading
     Graphics.Vulkan.Layer.VK_LAYER_GOOGLE_unique_objects
+    Graphics.Vulkan.MemoryRequirements
     Graphics.Vulkan.Offset
     Graphics.Vulkan.PhysicalDevice
     Graphics.Vulkan.Pipeline.BindPoint
@@ -89,6 +91,7 @@ library
     Graphics.Vulkan.ShaderModule
     Graphics.Vulkan.ShaderModuleCreateInfo
     Graphics.Vulkan.ShaderStage
+    Graphics.Vulkan.SharingMode
     Graphics.Vulkan.SubpassContents
     Graphics.Vulkan.Utils
     Graphics.Vulkan.Version

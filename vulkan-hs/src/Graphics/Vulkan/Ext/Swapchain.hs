@@ -33,10 +33,7 @@ import qualified Graphics.Vulkan.Ext.VK_KHR_swapchain as Vk
 
 import Graphics.Vulkan.Result (vkResult)
 
-import Graphics.Vulkan.ImageCreateInfo
-  ( VkImageUsageFlag, VkSharingMode
-  , unVkImageUsageBits, unVkSharingMode
-  )
+import Graphics.Vulkan.ImageCreateInfo (VkImageUsageFlag, unVkImageUsageBits)
 import Graphics.Vulkan.Ext.ColorSpace (VkColorSpaceKHR, unVkColorSpaceKHR)
 import Graphics.Vulkan.Ext.Surface
   ( VkSurfaceTransformFlagKHR, VkCompositeAlphaFlagKHR, VkPresentModeKHR
@@ -46,6 +43,7 @@ import Graphics.Vulkan.Extent (VkExtent2D, unVkExtent2D)
 import Graphics.Vulkan.Format (VkFormat, unVkFormat)
 import Graphics.Vulkan.Utils (unVkBool32)
 import Graphics.Vulkan.Result (vkResult)
+import Graphics.Vulkan.SharingMode (VkSharingMode, unVkSharingMode)
 
 data VkSwapchainCreateFlagKHR
   = SplitInstanceBindRegions

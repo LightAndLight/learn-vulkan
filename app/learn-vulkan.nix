@@ -1,6 +1,6 @@
 { mkDerivation, base, GLFW-b, stdenv, vulkan-hs
-, mmap, containers, managed, glslang
-, vulkan-loader, vulkan-validation-layers
+, mmap, containers, managed, linear
+, glslang, vulkan-loader, vulkan-validation-layers
 , Cabal, filepath, directory, process
 }:
 mkDerivation {
@@ -11,7 +11,7 @@ mkDerivation {
   isExecutable = true;
   setupHaskellDepends = [ Cabal directory filepath glslang process ];
   executableHaskellDepends =
-    [ base GLFW-b vulkan-hs mmap containers managed ];
+    [ base GLFW-b vulkan-hs mmap containers linear managed ];
   executableSystemDepends =
     [ vulkan-loader vulkan-validation-layers ];
   license = stdenv.lib.licenses.bsd3;
