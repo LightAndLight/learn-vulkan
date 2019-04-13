@@ -4,11 +4,12 @@
 {-# language LambdaCase #-}
 {-# language MagicHash #-}
 {-# language PatternSynonyms, ViewPatterns #-}
+{-# language RankNTypes #-}
 {-# language ScopedTypeVariables #-}
 {-# language TypeApplications #-}
 module Main where
 
-import Control.Exception (Exception(..), bracket, throwIO)
+import Control.Exception (Exception(..), bracket, throwIO, catch)
 import Control.Monad (unless, replicateM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
@@ -21,6 +22,7 @@ import Data.Void (Void)
 import Data.Word (Word32, Word64)
 import Graphics.UI.GLFW (ClientAPI(..), WindowHint(..))
 
+import qualified Control.Monad.Managed as Unsafe (with)
 import qualified Data.Set as Set
 import qualified Foreign.C.String as Foreign
 import qualified Foreign.Marshal.Alloc as Foreign
@@ -145,7 +147,7 @@ import Graphics.Vulkan.RenderPassCreateInfo
   , VkAttachmentReference(..)
   , VkAttachmentStoreOp(..)
   )
-import Graphics.Vulkan.Result (vkResult)
+import Graphics.Vulkan.Result (VkError(..), vkResult)
 import Graphics.Vulkan.SampleCount (VkSampleCount(..))
 import Graphics.Vulkan.Semaphore (VkSemaphore, VkSemaphoreCreateInfo(..), vkCreateSemaphore)
 import Graphics.Vulkan.ShaderModule (VkShaderModule, shaderModuleFromFile)
@@ -170,47 +172,76 @@ import qualified Graphics.Vulkan.Queue as QueueType (VkQueueType(..))
 framesInFlight :: Int
 framesInFlight = 2
 
+data LoopState = Quit | Recreate
+
 mainLoop ::
   MonadIO m =>
   GLFW.Window ->
+  (forall m. MonadManaged m => m (VkSwapchainKHR, [VkCommandBuffer])) ->
   VkDevice ->
-  VkSwapchainKHR ->
   Queues ->
-  [VkCommandBuffer] ->
   [(VkSemaphore, VkSemaphore, VkFence)] ->
   m ()
-mainLoop window device swapchain qs commandBuffers syncObjects = go $ cycle syncObjects
+mainLoop window mkSC device qs syncObjects = do
+  next <- liftIO . flip Unsafe.with pure $ do
+    (swapchain, commandBuffers) <- mkSC
+    go swapchain commandBuffers (cycle syncObjects) <* vkDeviceWaitIdle device
+  case next of
+    Quit -> pure ()
+    Recreate -> mainLoop window mkSC device qs syncObjects
   where
-    go ((imageAvailableSem, renderFinishedSem, inFlightFence) : rest) = do
+    go ::
+      MonadManaged m =>
+      VkSwapchainKHR ->
+      [VkCommandBuffer] ->
+      [(VkSemaphore, VkSemaphore, VkFence)] ->
+      m LoopState
+    go swapchain commandBuffers ((imageAvailableSem, renderFinishedSem, inFlightFence) : rest) = do
       close <- liftIO $ GLFW.windowShouldClose window
       if close
-        then vkDeviceWaitIdle device
+        then pure Quit
         else do
           liftIO GLFW.pollEvents
 
           vkWaitForFences device [inFlightFence] True maxBound
-          vkResetFences device [inFlightFence]
 
-          ix <- vkAcquireNextImageKHR device swapchain maxBound (Just imageAvailableSem) Nothing
+          m_ix <-
+            liftIO $
+            catch
+              (Just <$>
+               vkAcquireNextImageKHR
+                 device
+                 swapchain
+                 maxBound
+                 (Just imageAvailableSem)
+                 Nothing)
+              (\err -> do
+                 case err of
+                   OutOfDateKHR -> pure Nothing
+                   _ -> throwIO err)
 
-          let
-            submitInfo =
-              VkSubmitInfo
-              { pWaitSemaphores = [imageAvailableSem]
-              , pWaitDstStageMask = [[PipelineStage.ColorAttachmentOutput]]
-              , pCommandBuffers = [commandBuffers !! fromIntegral ix]
-              , pSignalSemaphores = [renderFinishedSem]
-              }
-          vkQueueSubmit (graphicsQ qs) [submitInfo] (Just inFlightFence)
-          let
-            presentInfo =
-              VkPresentInfoKHR
-              { pWaitSemaphores = [renderFinishedSem]
-              , pSwapchains = [swapchain]
-              , pImageIndices = [ix]
-              }
-          vkQueuePresentKHR (presentQ qs) presentInfo
-          go rest
+          case m_ix of
+            Nothing -> pure Recreate
+            Just ix -> do
+              let
+                submitInfo =
+                  VkSubmitInfo
+                  { pWaitSemaphores = [imageAvailableSem]
+                  , pWaitDstStageMask = [[PipelineStage.ColorAttachmentOutput]]
+                  , pCommandBuffers = [commandBuffers !! fromIntegral ix]
+                  , pSignalSemaphores = [renderFinishedSem]
+                  }
+              vkResetFences device [inFlightFence]
+              vkQueueSubmit (graphicsQ qs) [submitInfo] (Just inFlightFence)
+              let
+                presentInfo =
+                  VkPresentInfoKHR
+                  { pWaitSemaphores = [renderFinishedSem]
+                  , pSwapchains = [swapchain]
+                  , pImageIndices = [ix]
+                  }
+              vkQueuePresentKHR (presentQ qs) presentInfo
+              go swapchain commandBuffers rest
 
 vulkanGLFW :: IO a -> IO a
 vulkanGLFW m = do
@@ -780,6 +811,28 @@ initSyncObjects dev =
     fence <- vkCreateFence dev (VkFenceCreateInfo [Signaled]) Foreign.nullPtr
     pure (iaSem, rfSem, fence)
 
+recreateSwapchain ::
+  MonadManaged m =>
+  VkPhysicalDevice ->
+  VkDevice ->
+  QueueFamilyIndices ->
+  VkSurfaceKHR ->
+  VkShaderModule ->
+  VkShaderModule ->
+  VkPipelineLayout ->
+  VkCommandPool ->
+  m (VkSwapchainKHR, [VkCommandBuffer])
+recreateSwapchain physDev dev qfIxs surf vert frag pipeLayout cmdPool = do
+  (swapchain, scConfig) <- initSwapchain physDev qfIxs surf dev
+  imageViews <- initImageViews dev swapchain scConfig
+  renderPass <- initRenderPass dev scConfig
+  pipeline <- initPipeline dev vert frag scConfig pipeLayout renderPass
+  framebuffers <- initFramebuffers dev imageViews renderPass scConfig
+  commandBuffers <-
+    initCommandBuffers dev cmdPool framebuffers renderPass scConfig pipeline
+
+  pure (swapchain, commandBuffers)
+
 main :: IO ()
 main =
   vulkanGLFW . runManaged $ do
@@ -796,26 +849,20 @@ main =
 
     qs <- initQueues device qfIxs
 
-    (swapchain, scConfig) <- initSwapchain physicalDevice qfIxs surface device
-
-    imageViews <- initImageViews device swapchain scConfig
-
     vert <- shaderModuleFromFile "app/shaders/vert.spv" [] device Foreign.nullPtr
     frag <- shaderModuleFromFile "app/shaders/frag.spv" [] device Foreign.nullPtr
-
-    renderPass <- initRenderPass device scConfig
     pipelineLayout <- initPipelineLayout device
-    pipeline <- initPipeline device vert frag scConfig pipelineLayout renderPass
-    framebuffers <- initFramebuffers device imageViews renderPass scConfig
     commandPool <- initCommandPool device (graphicsQfIx qfIxs)
-    commandBuffers <-
-      initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline
-
     syncObjects <- initSyncObjects device
 
-    mainLoop window device swapchain qs commandBuffers syncObjects
+    mainLoop
+      window
+      (recreateSwapchain physicalDevice device qfIxs surface vert frag pipelineLayout commandPool)
+      device
+      qs
+      syncObjects
   where
     hints =
       [ WindowHint'ClientAPI ClientAPI'NoAPI
-      , WindowHint'Resizable False
+      -- , WindowHint'Resizable False
       ]
