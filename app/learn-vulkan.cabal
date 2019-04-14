@@ -31,12 +31,14 @@ custom-setup
 executable learn-vulkan
   main-is:             Main.hs
   other-modules:       Vertex
+                     , Subresources
 
   build-depends:       base ^>=4.12.0.0
                      , GLFW-b ^>=3.2
                      , containers ^>= 0.6
                      , linear ^>=1.20.8
                      , managed ^>=1.0
+                     , mtl ^>=2.2
                      , vulkan-hs ^>=0.1
   extra-libraries:     vulkan
   hs-source-dirs:      src
