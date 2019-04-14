@@ -67,6 +67,10 @@ import Graphics.Vulkan.Ext
   , VkDeviceExtension(..)
   , vkEnumerateDeviceExtensionProperties
   )
+import Graphics.Vulkan.DescriptorSetLayout
+  ( vkCreateDescriptorSetLayout, VkDescriptorSetLayoutCreateInfo(..)
+  , VkDescriptorSetLayoutBinding(..)
+  )
 import Graphics.Vulkan.Ext.ColorSpace (VkColorSpaceKHR(..))
 import Graphics.Vulkan.Ext.DebugUtils
   ( VkDebugUtilsMessengerEXT
@@ -178,6 +182,7 @@ import Graphics.Vulkan.Viewport (VkViewport(..))
 
 import qualified Graphics.Vulkan.Access as Access (VkAccessFlag(..))
 import qualified Graphics.Vulkan.ClearValue as ClearValue (VkClearValue(..), VkClearColorValue(..))
+import qualified Graphics.Vulkan.DescriptorType as DescriptorType (VkDescriptorType(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceCapabilities (VkSurfaceCapabilitiesKHR(..))
 import qualified Graphics.Vulkan.Ext.Surface as SurfaceFormat (VkSurfaceFormatKHR(..))
 import qualified Graphics.Vulkan.Extent as Extent2D (VkExtent2D(..))
@@ -437,6 +442,7 @@ data SwapchainConfig
   = SCC
   { scExtent :: VkExtent2D
   , scFormat :: VkSurfaceFormatKHR
+  , scImages :: Word32
   }
 
 initSwapchain ::
@@ -496,7 +502,7 @@ initSwapchain window physDevice qfIxs surf device = do
       }
 
   sc <- vkCreateSwapchainKHR device swapchainCreateInfo Foreign.nullPtr
-  pure (sc, SCC swapExtent surfaceFormat)
+  pure (sc, SCC swapExtent surfaceFormat imageCount)
 
   where
 
@@ -561,12 +567,27 @@ initImageViews device swapchain scConfig = do
 initPipelineLayout :: MonadManaged m => VkDevice -> m VkPipelineLayout
 initPipelineLayout device = do
   let
+    dsLayoutInfo =
+      VkDescriptorSetLayoutCreateInfo
+      { flags = []
+      , pBindings =
+        [ VkDescriptorSetLayoutBinding
+          { binding = 0
+          , descriptorType = DescriptorType.UniformBuffer
+          , descriptorCount = 1
+          , stageFlags = [ShaderStage.Vertex]
+          , pImmutableSamplers = Nothing
+          }
+        ]
+      }
+
+  dsLayout <- vkCreateDescriptorSetLayout device dsLayoutInfo Foreign.nullPtr
+
+  let
     layoutInfo =
       VkPipelineLayoutCreateInfo
       { flags = []
-      , pSetLayouts =
-        [ _
-        ]
+      , pSetLayouts = [dsLayout]
       , pPushConstantRanges = []
       }
 
@@ -826,23 +847,25 @@ initBuffers ::
   MonadManaged m =>
   VkPhysicalDevice ->
   VkDevice ->
-  m (VkBuffer, SubresourceLoc Vertex, SubresourceLoc Word16)
-initBuffers physDev dev = do
+  SwapchainConfig ->
+  m (VkBuffer, SubresourceLoc Vertex, SubresourceLoc Word16, SubresourceLoc Float)
+initBuffers physDev dev scConfig = do
   let
     srInfo =
       AllocateSubresourcesInfo
       { flags = []
-      , usage = [VertexBuffer, IndexBuffer]
+      , usage = [VertexBuffer, IndexBuffer, UniformBuffer]
       , subresources =
           SubCons (InitFull vertices) $
           SubCons (InitFull indices) $
+          SubCons (InitFull $ replicate (fromIntegral $ scImages scConfig) (0::Float)) $
           SubNil
       , memoryProperties = [HostVisible, HostCoherent]
       , sharingMode = Exclusive
       , pQueueFamilyIndices = []
       }
   (buf, srs) <- allocateSubresources physDev dev srInfo
-  case srs of; SubCons vLoc (SubCons iLoc SubNil) -> pure (buf, vLoc, iLoc)
+  case srs of; SubCons vLoc (SubCons iLoc (SubCons uLoc SubNil)) -> pure (buf, vLoc, iLoc, uLoc)
 
 initCommandBuffers ::
   MonadManaged m =>
@@ -952,7 +975,7 @@ main =
     commandPool <- initCommandPool device (graphicsQfIx qfIxs)
     syncObjects <- initSyncObjects device
 
-    (buffer, vLoc, iLoc) <- initBuffers physicalDevice device
+    (buffer, vLoc, iLoc) <- initBuffers physicalDevice device scConfig
 
     mainLoop
       window

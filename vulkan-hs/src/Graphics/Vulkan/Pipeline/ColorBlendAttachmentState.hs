@@ -17,16 +17,16 @@ data VkColorComponentFlag
   | A
   deriving (Eq, Ord, Show)
 
-unVkColorComponentFlagBit :: VkColorComponentFlag -> Vk.VkColorComponentBitmask a
-unVkColorComponentFlagBit a =
+unVkColorComponentBit :: VkColorComponentFlag -> Vk.VkColorComponentBitmask a
+unVkColorComponentBit a =
   case a of
     R -> Vk.VK_COLOR_COMPONENT_R_BIT
     G -> Vk.VK_COLOR_COMPONENT_G_BIT
     B -> Vk.VK_COLOR_COMPONENT_B_BIT
     A -> Vk.VK_COLOR_COMPONENT_A_BIT
 
-unVkColorComponentFlagBits :: [VkColorComponentFlag] -> Vk.VkColorComponentFlags
-unVkColorComponentFlagBits = foldr (\a b -> unVkColorComponentFlagBit a .|. b) 0
+unVkColorComponentBits :: [VkColorComponentFlag] -> Vk.VkColorComponentFlags
+unVkColorComponentBits = foldr (\a b -> unVkColorComponentBit a .|. b) 0
 
 data VkBlendFactor
   = Zero
@@ -207,4 +207,4 @@ unVkPipelineColorBlendAttachmentState a =
     Vk.writeField @"srcAlphaBlendFactor" ptr (unVkBlendFactor $ srcAlphaBlendFactor a)
     Vk.writeField @"dstAlphaBlendFactor" ptr (unVkBlendFactor $ dstAlphaBlendFactor a)
     Vk.writeField @"alphaBlendOp" ptr (unVkBlendOp $ alphaBlendOp a)
-    Vk.writeField @"colorWriteMask" ptr (unVkColorComponentFlagBits $ colorWriteMask a)
+    Vk.writeField @"colorWriteMask" ptr (unVkColorComponentBits $ colorWriteMask a)

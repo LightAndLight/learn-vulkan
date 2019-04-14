@@ -16,9 +16,9 @@ module Graphics.Vulkan.PhysicalDevice
   , VkPhysicalDeviceFeatures(..)
   , vkPhysicalDeviceFeatures, unVkPhysicalDeviceFeatures
   , VkPhysicalDeviceMemoryProperties(..), vkPhysicalDeviceMemoryProperties
-  , VkMemoryPropertyFlag(..), vkMemoryPropertyFlagBit, vkMemoryPropertyFlagBits
+  , VkMemoryPropertyFlag(..), vkMemoryPropertyBit, vkMemoryPropertyBits
   , VkMemoryType(..), vkMemoryType
-  , VkMemoryHeapFlag(..), vkMemoryHeapFlagBit, vkMemoryHeapFlagBits
+  , VkMemoryHeapFlag(..), vkMemoryHeapBit, vkMemoryHeapBits
   , VkMemoryHeap(..), vkMemoryHeap
   )
 where
@@ -698,10 +698,10 @@ data VkMemoryPropertyFlag
   | Protected
   deriving (Eq, Ord, Show)
 
-vkMemoryPropertyFlagBit ::
+vkMemoryPropertyBit ::
   Vk.VkMemoryPropertyBitmask a ->
   VkMemoryPropertyFlag
-vkMemoryPropertyFlagBit a =
+vkMemoryPropertyBit a =
   case a of
     Vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT ->
       DeviceLocal
@@ -716,10 +716,10 @@ vkMemoryPropertyFlagBit a =
     (unsafeCoerce -> Vk.VK_MEMORY_PROPERTY_PROTECTED_BIT) ->
       Protected
 
-vkMemoryPropertyFlagBits ::
+vkMemoryPropertyBits ::
   Vk.VkMemoryPropertyFlags ->
   [VkMemoryPropertyFlag]
-vkMemoryPropertyFlagBits fs =
+vkMemoryPropertyBits fs =
   foldr (\(f, a) -> if fs .&. f == f then (a :) else id) []
   [ (Vk.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, DeviceLocal)
   , (Vk.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, HostVisible)
@@ -740,7 +740,7 @@ vkMemoryType ::
   VkMemoryType
 vkMemoryType a =
   VkMemoryType
-  { propertyFlags = vkMemoryPropertyFlagBits $ Vk.getField @"propertyFlags" a
+  { propertyFlags = vkMemoryPropertyBits $ Vk.getField @"propertyFlags" a
   , heapIndex = Vk.getField @"heapIndex" a
   }
 
@@ -750,19 +750,19 @@ data VkMemoryHeapFlag
   | MultiInstanceKHR
   deriving (Eq, Ord, Show)
 
-vkMemoryHeapFlagBit ::
+vkMemoryHeapBit ::
   Vk.VkMemoryHeapBitmask a ->
   VkMemoryHeapFlag
-vkMemoryHeapFlagBit a =
+vkMemoryHeapBit a =
   case a of
     Vk.VK_MEMORY_HEAP_DEVICE_LOCAL_BIT -> DeviceLocalHeap
     (unsafeCoerce -> Vk.VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) -> MultiInstance
     (unsafeCoerce -> Vk.VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR) -> MultiInstanceKHR
 
-vkMemoryHeapFlagBits ::
+vkMemoryHeapBits ::
   Vk.VkMemoryHeapFlags ->
   [VkMemoryHeapFlag]
-vkMemoryHeapFlagBits fs =
+vkMemoryHeapBits fs =
   foldr (\(f, a) -> if fs .&. f == f then (a :) else id) []
   [ (Vk.VK_MEMORY_HEAP_DEVICE_LOCAL_BIT, DeviceLocalHeap)
   , (unsafeCoerce Vk.VK_MEMORY_HEAP_MULTI_INSTANCE_BIT, MultiInstance)
@@ -781,7 +781,7 @@ vkMemoryHeap ::
 vkMemoryHeap a =
   VkMemoryHeap
   { size = Vk.getField @"size" a
-  , flags = vkMemoryHeapFlagBits $ Vk.getField @"flags" a
+  , flags = vkMemoryHeapBits $ Vk.getField @"flags" a
   }
 
 data VkPhysicalDeviceMemoryProperties

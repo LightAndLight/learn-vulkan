@@ -5,9 +5,9 @@ module Graphics.Vulkan.Buffer
   , vkGetBufferMemoryRequirements
   , vkBindBufferMemory
   , VkBufferCreateFlag(..)
-  , unVkBufferCreateFlagBit, unVkBufferCreateFlagBits
+  , unVkBufferCreateBit, unVkBufferCreateBits
   , VkBufferUsageFlag(..)
-  , unVkBufferUsageFlagBit, unVkBufferUsageFlagBits
+  , unVkBufferUsageBit, unVkBufferUsageBits
   , VkBufferCreateInfo(..), unVkBufferCreateInfo
   )
 where
@@ -40,10 +40,10 @@ data VkBufferCreateFlag
   | DeviceAddressCaptureReplayEXT
   deriving (Eq, Ord, Show)
 
-unVkBufferCreateFlagBit ::
+unVkBufferCreateBit ::
   VkBufferCreateFlag ->
   Vk.VkBufferCreateBitmask a
-unVkBufferCreateFlagBit a =
+unVkBufferCreateBit a =
   case a of
     SparseBinding ->
       Vk.VK_BUFFER_CREATE_SPARSE_BINDING_BIT
@@ -56,10 +56,10 @@ unVkBufferCreateFlagBit a =
     -- DeviceAddressCaptureReplayEXT ->
       -- Vk.VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_EXT
 
-unVkBufferCreateFlagBits ::
+unVkBufferCreateBits ::
   [VkBufferCreateFlag] ->
   Vk.VkBufferCreateFlags
-unVkBufferCreateFlagBits = foldr (\a b -> unVkBufferCreateFlagBit a .|. b) 0
+unVkBufferCreateBits = foldr (\a b -> unVkBufferCreateBit a .|. b) 0
 
 data VkBufferUsageFlag
   = TransferSrc
@@ -78,10 +78,10 @@ data VkBufferUsageFlag
   | ShaderDeviceAddressEXT
   deriving (Eq, Ord, Show)
 
-unVkBufferUsageFlagBit ::
+unVkBufferUsageBit ::
   VkBufferUsageFlag ->
   Vk.VkBufferUsageBitmask a
-unVkBufferUsageFlagBit a =
+unVkBufferUsageBit a =
   case a of
     TransferSrc ->
       Vk.VK_BUFFER_USAGE_TRANSFER_SRC_BIT
@@ -112,10 +112,10 @@ unVkBufferUsageFlagBit a =
     -- ShaderDeviceAddressEXT ->
       -- Vk.VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_EXT
 
-unVkBufferUsageFlagBits ::
+unVkBufferUsageBits ::
   [VkBufferUsageFlag] ->
   Vk.VkBufferUsageFlags
-unVkBufferUsageFlagBits = foldr (\a b -> unVkBufferUsageFlagBit a .|. b) 0
+unVkBufferUsageBits = foldr (\a b -> unVkBufferUsageBit a .|. b) 0
 
 data VkBufferCreateInfo
   = VkBufferCreateInfo
@@ -132,9 +132,9 @@ unVkBufferCreateInfo info =
   Vk.newVkData $ \ptr -> do
     Vk.writeField @"sType" ptr Vk.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO
     Vk.writeField @"pNext" ptr Foreign.nullPtr
-    Vk.writeField @"flags" ptr $ unVkBufferCreateFlagBits (flags info)
+    Vk.writeField @"flags" ptr $ unVkBufferCreateBits (flags info)
     Vk.writeField @"size" ptr $ size info
-    Vk.writeField @"usage" ptr $ unVkBufferUsageFlagBits (usage info)
+    Vk.writeField @"usage" ptr $ unVkBufferUsageBits (usage info)
     Vk.writeField @"sharingMode" ptr $ unVkSharingMode (sharingMode info)
     Vk.writeField @"queueFamilyIndexCount" ptr (fromIntegral . length $ pQueueFamilyIndices info)
     Vk.writeField @"pQueueFamilyIndices" ptr ixPtr

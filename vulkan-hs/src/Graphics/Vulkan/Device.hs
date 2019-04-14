@@ -9,7 +9,7 @@ module Graphics.Vulkan.Device
   , Vk.VkDeviceMemory
   , vkAllocateMemory
   , vkMapMemory
-  , VkMemoryMapFlag(..), unVkMemoryMapFlagBits
+  , VkMemoryMapFlag(..), unVkMemoryMapBits
   , VkMemoryAllocateInfo(..), unVkMemoryAllocateInfo
   )
 where
@@ -92,11 +92,11 @@ vkAllocateMemory dev info cbs = do
 data VkMemoryMapFlag
   deriving (Eq, Ord, Show)
 
-unVkMemoryMapFlagBits ::
+unVkMemoryMapBits ::
   [VkMemoryMapFlag] ->
   Vk.VkMemoryMapFlags
-unVkMemoryMapFlagBits [] = 0
-unVkMemoryMapFlagBits (x:_) = case x of
+unVkMemoryMapBits [] = 0
+unVkMemoryMapBits (x:_) = case x of
 
 vkMapMemory ::
   MonadManaged m =>
@@ -115,7 +115,7 @@ vkMapMemory dev mem off m_size fs = do
       mem
       off
       (fromMaybe (fromIntegral Vk.VK_WHOLE_SIZE) m_size)
-      (unVkMemoryMapFlagBits fs)
+      (unVkMemoryMapBits fs)
       pPtr
   using $ managed (bracket
     (Foreign.peek $ Foreign.castPtr pPtr)

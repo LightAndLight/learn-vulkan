@@ -11,6 +11,7 @@ import Data.Word (Word32)
 import Data.Void (Void)
 import Foreign (Ptr, Storable, sizeOf, pokeArray, nullPtr, plusPtr)
 
+import Data.Some (Some(..))
 import Graphics.Vulkan.Buffer
   ( VkBuffer, VkBufferCreateInfo(..), VkBufferCreateFlag, VkBufferUsageFlag
   , vkCreateBuffer

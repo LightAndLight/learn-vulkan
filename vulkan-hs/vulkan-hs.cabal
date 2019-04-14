@@ -35,6 +35,7 @@ library
     Graphics.Vulkan.CompareOp
     Graphics.Vulkan.Dependency
     Graphics.Vulkan.DescriptorSetLayout
+    Graphics.Vulkan.DescriptorType
     Graphics.Vulkan.Device
     Graphics.Vulkan.DeviceCreateInfo
     Graphics.Vulkan.DeviceQueueCreateInfo
