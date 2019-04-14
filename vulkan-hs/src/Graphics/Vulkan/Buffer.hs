@@ -3,6 +3,7 @@ module Graphics.Vulkan.Buffer
   ( Vk.VkBuffer
   , vkCreateBuffer
   , vkGetBufferMemoryRequirements
+  , vkBindBufferMemory
   , VkBufferCreateFlag(..)
   , unVkBufferCreateFlagBit, unVkBufferCreateFlagBits
   , VkBufferUsageFlag(..)
@@ -159,3 +160,13 @@ vkGetBufferMemoryRequirements dev buf =
   liftIO . Foreign.alloca $ \mPtr -> do
     Vk.vkGetBufferMemoryRequirements dev buf mPtr
     vkMemoryRequirements <$> Foreign.peek mPtr
+
+vkBindBufferMemory ::
+  MonadIO m =>
+  Vk.VkDevice ->
+  Vk.VkBuffer ->
+  Vk.VkDeviceMemory ->
+  Vk.VkDeviceSize ->
+  m ()
+vkBindBufferMemory dev buf mem off =
+  liftIO $ vkResult =<< Vk.vkBindBufferMemory dev buf mem off

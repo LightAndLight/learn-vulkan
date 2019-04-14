@@ -22,6 +22,8 @@ import Data.Traversable (for)
 import Data.Void (Void)
 import Data.Word (Word32, Word64)
 import Graphics.UI.GLFW (ClientAPI(..), WindowHint(..))
+import Linear.V2 (V2(..))
+import Linear.V3 (V3(..))
 
 import qualified Control.Monad.Managed as Unsafe (with)
 import qualified Data.Set as Set
@@ -37,6 +39,7 @@ import Graphics.Vulkan.ApplicationInfo (VkApplicationInfo(..))
 import Graphics.Vulkan.Buffer
   ( VkBuffer, vkCreateBuffer, VkBufferCreateInfo(..), VkBufferUsageFlag(..)
   , vkGetBufferMemoryRequirements
+  , vkBindBufferMemory
   )
 import Graphics.Vulkan.CommandBuffer
   ( VkCommandBuffer
@@ -46,9 +49,14 @@ import Graphics.Vulkan.CommandBuffer
 import Graphics.Vulkan.CommandPool (VkCommandPool, vkCreateCommandPool)
 import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
 import Graphics.Vulkan.Command.BindPipeline (vkCmdBindPipeline)
+import Graphics.Vulkan.Command.BindVertexBuffers (vkCmdBindVertexBuffers)
 import Graphics.Vulkan.Command.Draw (vkCmdDraw)
 import Graphics.Vulkan.Command.RenderPass (VkRenderPassBeginInfo(..), withCmdRenderPass)
-import Graphics.Vulkan.Device (VkDevice, vkCreateDevice, vkGetDeviceQueue, vkDeviceWaitIdle)
+import Graphics.Vulkan.Device
+  ( VkDevice, vkCreateDevice, vkGetDeviceQueue, vkDeviceWaitIdle
+  , VkMemoryAllocateInfo(..), vkAllocateMemory
+  , vkMapMemory
+  )
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
   (VkDeviceQueueCreateInfo(..))
@@ -108,7 +116,6 @@ import Graphics.Vulkan.InstanceCreateInfo (VkInstanceCreateInfo(..))
 import Graphics.Vulkan.Layer
   ( VkLayer(..), vkLayer, unVkLayer
   )
-import Graphics.Vulkan.MemoryRequirements (VkMemoryRequirements(..))
 import Graphics.Vulkan.Offset (VkOffset2D(..))
 import Graphics.Vulkan.PhysicalDevice
   ( VkPhysicalDevice
@@ -176,6 +183,7 @@ import qualified Graphics.Vulkan.Extent as Extent2D (VkExtent2D(..))
 import qualified Graphics.Vulkan.ImageLayout as ImageLayout (VkImageLayout(..))
 import qualified Graphics.Vulkan.Ext.DebugUtils as MessageType (VkDebugUtilsMessageType(..))
 import qualified Graphics.Vulkan.GraphicsPipelineCreateInfo as Stages (Stages(..))
+import qualified Graphics.Vulkan.MemoryRequirements as MemoryRequirements (VkMemoryRequirements(..))
 import qualified Graphics.Vulkan.RenderPassCreateInfo as LoadOp (VkAttachmentLoadOp(..))
 import qualified Graphics.Vulkan.Pipeline.BindPoint as BindPoint (VkPipelineBindPoint(..))
 import qualified Graphics.Vulkan.Pipeline.VertexInputStateCreateInfo as InputRate
@@ -318,7 +326,8 @@ initInstance = do
         , engineVersion = _VK_MAKE_VERSION 1 0 0
         , apiVersion = _VK_MAKE_VERSION 1 0 82
         }
-      , ppEnabledLayerNames = [LunargStandardValidation]
+      , ppEnabledLayerNames =
+          [LunargStandardValidation]
       , ppEnabledExtensionNames = DebugUtils : requiredExts
       }
 
@@ -792,20 +801,27 @@ initCommandPool device ix = do
 
   vkCreateCommandPool device commandPoolInfo Foreign.nullPtr
 
+vertices :: [Vertex]
+vertices =
+  [ Vertex { vPos = V2 (-0.5) 0, vColor = V3 1 0 0 }
+  , Vertex { vPos = V2 0 (-0.5), vColor = V3 0 1 0 }
+  , Vertex { vPos = V2 0.5 0, vColor = V3 1 1 0 }
+  ]
+
 initVertexBuffer :: MonadManaged m => VkPhysicalDevice -> VkDevice -> m VkBuffer
 initVertexBuffer physDev dev = do
   let
     bufferInfo =
       VkBufferCreateInfo
       { flags = []
-      , size = _
+      , size = fromIntegral $ Foreign.sizeOf (undefined :: Vertex) * length vertices
       , usage = [VertexBuffer]
       , sharingMode = Exclusive
       , pQueueFamilyIndices = []
       }
   buffer <- vkCreateBuffer dev bufferInfo Foreign.nullPtr
   memRequirements <- vkGetBufferMemoryRequirements dev buffer
-  let reqTypeBits = memoryTypeBits memRequirements
+  let reqTypeBits = MemoryRequirements.memoryTypeBits memRequirements
 
   memProperties <- vkGetPhysicalDeviceMemoryProperties physDev
 
@@ -824,6 +840,17 @@ initVertexBuffer physDev dev = do
   case m_ix of
     Nothing -> error "No suitable memory type"
     Just ix -> do
+      let
+        allocInfo =
+          VkMemoryAllocateInfo
+          { allocationSize = MemoryRequirements.size memRequirements
+          , memoryTypeIndex = fromIntegral ix
+          }
+      mem <- vkAllocateMemory dev allocInfo Foreign.nullPtr
+      vkBindBufferMemory dev buffer mem 0
+      liftIO . runManaged $ do
+        ptr :: Foreign.Ptr Vertex <- vkMapMemory dev mem 0 Nothing []
+        liftIO $ Foreign.pokeArray ptr vertices
       pure buffer
 
 initCommandBuffers ::
@@ -834,8 +861,9 @@ initCommandBuffers ::
   VkRenderPass ->
   SwapchainConfig ->
   VkPipeline ->
+  VkBuffer ->
   m [VkCommandBuffer]
-initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline = do
+initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline vBuf = do
   let
     commandBufferInfo =
       VkCommandBufferAllocateInfo
@@ -865,7 +893,8 @@ initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline 
     withCommandBuffer cmdBuf beginInfo $
       withCmdRenderPass cmdBuf renderPassBeginInfo Subpass.Inline $ do
         vkCmdBindPipeline cmdBuf BindPoint.Graphics pipeline
-        vkCmdDraw cmdBuf 3 1 0 0
+        vkCmdBindVertexBuffers cmdBuf 0 [(vBuf, 0)]
+        vkCmdDraw cmdBuf (fromIntegral $ length vertices) 1 0 0
 
   pure commandBuffers
 
@@ -888,15 +917,16 @@ recreateSwapchain ::
   VkShaderModule ->
   VkPipelineLayout ->
   VkCommandPool ->
+  VkBuffer ->
   m (VkSwapchainKHR, [VkCommandBuffer])
-recreateSwapchain window physDev dev qfIxs surf vert frag pipeLayout cmdPool = do
+recreateSwapchain window physDev dev qfIxs surf vert frag pipeLayout cmdPool vBuf = do
   (swapchain, scConfig) <- initSwapchain window physDev qfIxs surf dev
   imageViews <- initImageViews dev swapchain scConfig
   renderPass <- initRenderPass dev scConfig
   pipeline <- initPipeline dev vert frag scConfig pipeLayout renderPass
   framebuffers <- initFramebuffers dev imageViews renderPass scConfig
   commandBuffers <-
-    initCommandBuffers dev cmdPool framebuffers renderPass scConfig pipeline
+    initCommandBuffers dev cmdPool framebuffers renderPass scConfig pipeline vBuf
 
   pure (swapchain, commandBuffers)
 
@@ -922,6 +952,8 @@ main =
     commandPool <- initCommandPool device (graphicsQfIx qfIxs)
     syncObjects <- initSyncObjects device
 
+    vertexBuffer <- initVertexBuffer physicalDevice device
+
     mainLoop
       window
       (recreateSwapchain
@@ -933,7 +965,8 @@ main =
          vert
          frag
          pipelineLayout
-         commandPool)
+         commandPool
+         vertexBuffer)
       device
       qs
       syncObjects
