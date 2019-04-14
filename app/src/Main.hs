@@ -564,7 +564,9 @@ initPipelineLayout device = do
     layoutInfo =
       VkPipelineLayoutCreateInfo
       { flags = []
-      , pSetLayouts = []
+      , pSetLayouts =
+        [ _
+        ]
       , pPushConstantRanges = []
       }
 

@@ -34,6 +34,7 @@ library
     Graphics.Vulkan.Command.RenderPass
     Graphics.Vulkan.CompareOp
     Graphics.Vulkan.Dependency
+    Graphics.Vulkan.DescriptorSetLayout
     Graphics.Vulkan.Device
     Graphics.Vulkan.DeviceCreateInfo
     Graphics.Vulkan.DeviceQueueCreateInfo
