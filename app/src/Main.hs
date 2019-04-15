@@ -61,6 +61,10 @@ import Graphics.Vulkan.Device
 import Graphics.Vulkan.DeviceCreateInfo (VkDeviceCreateInfo(..))
 import Graphics.Vulkan.DeviceQueueCreateInfo
   (VkDeviceQueueCreateInfo(..))
+import Graphics.Vulkan.DescriptorPool
+  ( VkDescriptorPool, VkDescriptorPoolCreateInfo(..), VkDescriptorPoolSize(..)
+  , vkCreateDescriptorPool
+  )
 import Graphics.Vulkan.Ext
   ( VkInstanceExtension(..)
   , glfwGetRequiredInstanceExtensions
@@ -875,6 +879,26 @@ initVertexBuffer physDev dev = do
   (buf, srs) <- allocateSubresources physDev dev srInfo
   case srs of; SubCons vLoc (SubCons iLoc SubNil) -> pure (buf, vLoc, iLoc)
 
+initDescriptorPool ::
+  MonadManaged m =>
+  VkDevice ->
+  Word32 ->
+  m VkDescriptorPool
+initDescriptorPool dev numImages = do
+  let
+    poolInfo =
+      VkDescriptorPoolCreateInfo
+      { flags = []
+      , maxSets = numImages
+      , pPoolSizes =
+        [ VkDescriptorPoolSize
+          { descriptorType = DescriptorType.UniformBuffer
+          , descriptorCount = numImages
+          }
+        ]
+      }
+  vkCreateDescriptorPool dev poolInfo Foreign.nullPtr
+
 initUniformBuffer ::
   MonadManaged m =>
   VkPhysicalDevice ->
@@ -976,6 +1000,7 @@ recreateSwapchain window physDev dev qfIxs surf vert frag pipeLayout cmdPool vBu
   (swapchain, scConfig) <- initSwapchain window physDev qfIxs surf dev
   imageViews <- initImageViews dev swapchain scConfig
   (uBuffer, uLoc) <- initUniformBuffer physDev dev (0 <$ imageViews)
+  descriptorPool <- initDescriptorPool dev (fromIntegral $ length imageViews)
   renderPass <- initRenderPass dev scConfig
   pipeline <- initPipeline dev vert frag scConfig pipeLayout renderPass
   framebuffers <- initFramebuffers dev imageViews renderPass scConfig

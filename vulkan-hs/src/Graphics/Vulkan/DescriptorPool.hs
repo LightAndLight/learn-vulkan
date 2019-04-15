@@ -2,7 +2,7 @@
 module Graphics.Vulkan.DescriptorPool
   ( Vk.VkDescriptorPool
   , vkCreateDescriptorPool
-  , VkDescriptorPoolSize, unVkDescriptorPoolSize
+  , VkDescriptorPoolSize(..), unVkDescriptorPoolSize
   , VkDescriptorPoolCreateFlag(..), unVkDescriptorPoolCreateBit, unVkDescriptorPoolCreateBits
   , VkDescriptorPoolCreateInfo(..), unVkDescriptorPoolCreateInfo
   )
