@@ -216,27 +216,33 @@ data LoopState = Quit | Recreate
 mainLoop ::
   MonadIO m =>
   GLFW.Window ->
-  (forall m. MonadManaged m => m (VkSwapchainKHR, [VkCommandBuffer])) ->
+  (forall m. MonadManaged m => m (VkSwapchainKHR, [VkCommandBuffer], SubresourceLoc Float)) ->
   VkDevice ->
   Queues ->
+  Float ->
   [(VkSemaphore, VkSemaphore, VkFence)] ->
   m ()
-mainLoop window mkSC device qs syncObjects = do
+mainLoop window mkSC device qs rotation syncObjects = do
   next <- liftIO . flip Unsafe.with pure $ do
-    (swapchain, commandBuffers) <- mkSC
-    go swapchain commandBuffers (cycle syncObjects) <*
-      vkDeviceWaitIdle device
+    (swapchain, commandBuffers, uLoc) <- mkSC
+    let
+      count = fromIntegral $ length syncObjects
+      frames = (\(a, (b, c, d)) -> (a, b, c, d)) <$> zip [0::Int ..count-1] syncObjects
+    res <- go swapchain commandBuffers uLoc rotation (cycle frames)
+    res <$ vkDeviceWaitIdle device
   case next of
     Quit -> pure ()
-    Recreate -> mainLoop window mkSC device qs syncObjects
+    Recreate -> mainLoop window mkSC device qs rotation syncObjects
   where
     go ::
       MonadManaged m =>
       VkSwapchainKHR ->
       [VkCommandBuffer] ->
-      [(VkSemaphore, VkSemaphore, VkFence)] ->
+      SubresourceLoc Float ->
+      Float ->
+      [(Int, VkSemaphore, VkSemaphore, VkFence)] ->
       m LoopState
-    go swapchain cmdBuffers ((imageAvailableSem, renderFinishedSem, inFlightFence) : rest) = do
+    go swapchain cmdBuffers uLoc rotation ((bufIx, imageAvailableSem, renderFinishedSem, inFlightFence) : rest) = do
       close <- liftIO $ GLFW.windowShouldClose window
       if close
         then pure Quit
@@ -263,6 +269,10 @@ mainLoop window mkSC device qs syncObjects = do
           case m_ix of
             Nothing -> pure Recreate
             Just ix -> do
+              liftIO $ Foreign.pokeElemOff (SubresourceLoc.location uLoc) bufIx rotation
+
+              vkResetFences device [inFlightFence]
+
               let
                 submitInfo =
                   VkSubmitInfo
@@ -271,7 +281,7 @@ mainLoop window mkSC device qs syncObjects = do
                   , pCommandBuffers = [cmdBuffers !! fromIntegral ix]
                   , pSignalSemaphores = [renderFinishedSem]
                   }
-              vkResetFences device [inFlightFence]
+
               vkQueueSubmit (graphicsQ qs) [submitInfo] (Just inFlightFence)
               let
                 presentInfo =
@@ -281,7 +291,7 @@ mainLoop window mkSC device qs syncObjects = do
                   , pImageIndices = [ix]
                   }
               vkQueuePresentKHR (presentQ qs) presentInfo
-              go swapchain cmdBuffers rest
+              go swapchain cmdBuffers uLoc (rotation+0.00001)rest
 
 vulkanGLFW :: IO a -> IO a
 vulkanGLFW m = do
@@ -442,7 +452,6 @@ data SwapchainConfig
   = SCC
   { scExtent :: VkExtent2D
   , scFormat :: VkSurfaceFormatKHR
-  , scImages :: Word32
   }
 
 initSwapchain ::
@@ -466,13 +475,14 @@ initSwapchain window physDevice qfIxs surf device = do
         else error "vulkan couldn't find preferred format"
 
   availablePresentModes <- vkGetPhysicalDeviceSurfacePresentModesKHR physDevice surf
-  surfaceCapabilities <- vkGetPhysicalDeviceSurfaceCapabilitiesKHR physDevice surf
 
   let
     presentMode = mkPresentMode availablePresentModes
-    imageCount = mkImageCount surfaceCapabilities
     differentQfIxs = graphicsQfIx qfIxs /= presentQfIx qfIxs
 
+  surfaceCapabilities <- vkGetPhysicalDeviceSurfaceCapabilitiesKHR physDevice surf
+
+  let imageCount = mkImageCount surfaceCapabilities
   swapExtent <- liftIO $ mkSwapExtent surfaceCapabilities
 
   let
@@ -502,7 +512,7 @@ initSwapchain window physDevice qfIxs surf device = do
       }
 
   sc <- vkCreateSwapchainKHR device swapchainCreateInfo Foreign.nullPtr
-  pure (sc, SCC swapExtent surfaceFormat imageCount)
+  pure (sc, SCC swapExtent surfaceFormat)
 
   where
 
@@ -520,17 +530,17 @@ initSwapchain window physDevice qfIxs surf device = do
         then FifoKHR
         else ImmediateKHR
 
-    mkImageCount scs =
-      if SurfaceCapabilities.maxImageCount scs == 0
-      then SurfaceCapabilities.minImageCount scs + 1
-      else min (SurfaceCapabilities.minImageCount scs + 1) (SurfaceCapabilities.maxImageCount scs)
-
     mkSwapExtent scs =
       if Extent2D.width (currentExtent scs) /= maxBound
       then pure $ currentExtent scs
       else do
         (w, h) <- GLFW.getFramebufferSize window
         pure $ VkExtent2D { width = fromIntegral w, height = fromIntegral h }
+
+    mkImageCount scs =
+      if SurfaceCapabilities.maxImageCount scs == 0
+      then SurfaceCapabilities.minImageCount scs + 1
+      else min (SurfaceCapabilities.minImageCount scs + 1) (SurfaceCapabilities.maxImageCount scs)
 
 initImageViews :: MonadManaged m => VkDevice -> VkSwapchainKHR -> SwapchainConfig -> m [VkImageView]
 initImageViews device swapchain scConfig = do
@@ -843,29 +853,49 @@ vertices =
 indices :: [Word16]
 indices = [ 1, 2, 3, 3, 0, 1 ]
 
-initBuffers ::
+initVertexBuffer ::
   MonadManaged m =>
   VkPhysicalDevice ->
   VkDevice ->
-  SwapchainConfig ->
-  m (VkBuffer, SubresourceLoc Vertex, SubresourceLoc Word16, SubresourceLoc Float)
-initBuffers physDev dev scConfig = do
+  m (VkBuffer, SubresourceLoc Vertex, SubresourceLoc Word16)
+initVertexBuffer physDev dev = do
   let
     srInfo =
       AllocateSubresourcesInfo
       { flags = []
-      , usage = [VertexBuffer, IndexBuffer, UniformBuffer]
+      , usage = [VertexBuffer, IndexBuffer]
       , subresources =
           SubCons (InitFull vertices) $
           SubCons (InitFull indices) $
-          SubCons (InitFull $ replicate (fromIntegral $ scImages scConfig) (0::Float)) $
           SubNil
       , memoryProperties = [HostVisible, HostCoherent]
       , sharingMode = Exclusive
       , pQueueFamilyIndices = []
       }
   (buf, srs) <- allocateSubresources physDev dev srInfo
-  case srs of; SubCons vLoc (SubCons iLoc (SubCons uLoc SubNil)) -> pure (buf, vLoc, iLoc, uLoc)
+  case srs of; SubCons vLoc (SubCons iLoc SubNil) -> pure (buf, vLoc, iLoc)
+
+initUniformBuffer ::
+  MonadManaged m =>
+  VkPhysicalDevice ->
+  VkDevice ->
+  [Float] ->
+  m (VkBuffer, SubresourceLoc Float)
+initUniformBuffer physDev dev initials = do
+  let
+    srInfo =
+      AllocateSubresourcesInfo
+      { flags = []
+      , usage = [UniformBuffer]
+      , subresources =
+          SubCons (InitFull initials) $
+          SubNil
+      , memoryProperties = [HostVisible, HostCoherent]
+      , sharingMode = Exclusive
+      , pQueueFamilyIndices = []
+      }
+  (buf, srs) <- allocateSubresources physDev dev srInfo
+  case srs of; SubCons uLoc SubNil -> pure (buf, uLoc)
 
 initCommandBuffers ::
   MonadManaged m =>
@@ -941,17 +971,18 @@ recreateSwapchain ::
   VkBuffer ->
   SubresourceLoc Vertex ->
   SubresourceLoc Word16 ->
-  m (VkSwapchainKHR, [VkCommandBuffer])
+  m (VkSwapchainKHR, [VkCommandBuffer], SubresourceLoc Float)
 recreateSwapchain window physDev dev qfIxs surf vert frag pipeLayout cmdPool vBuf vLoc iLoc = do
   (swapchain, scConfig) <- initSwapchain window physDev qfIxs surf dev
   imageViews <- initImageViews dev swapchain scConfig
+  (uBuffer, uLoc) <- initUniformBuffer physDev dev (0 <$ imageViews)
   renderPass <- initRenderPass dev scConfig
   pipeline <- initPipeline dev vert frag scConfig pipeLayout renderPass
   framebuffers <- initFramebuffers dev imageViews renderPass scConfig
   commandBuffers <-
     initCommandBuffers dev cmdPool framebuffers renderPass scConfig pipeline vBuf vLoc iLoc
 
-  pure (swapchain, commandBuffers)
+  pure (swapchain, commandBuffers, uLoc)
 
 main :: IO ()
 main =
@@ -975,7 +1006,7 @@ main =
     commandPool <- initCommandPool device (graphicsQfIx qfIxs)
     syncObjects <- initSyncObjects device
 
-    (buffer, vLoc, iLoc) <- initBuffers physicalDevice device scConfig
+    (vBuffer, vLoc, iLoc) <- initVertexBuffer physicalDevice device
 
     mainLoop
       window
@@ -989,11 +1020,12 @@ main =
          frag
          pipelineLayout
          commandPool
-         buffer
+         vBuffer
          vLoc
          iLoc)
       device
       qs
+      0
       syncObjects
   where
     hints =

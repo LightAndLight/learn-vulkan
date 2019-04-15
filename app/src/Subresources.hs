@@ -113,8 +113,9 @@ allocateSubresources physDev dev info = do
     m_ix =
       foldr
         (\(ix, prop) rest ->
+           let mask = (1 `shiftL` ix) in
            if
-             reqTypeBits .&. 1 `shiftL` ix == reqTypeBits &&
+             reqTypeBits .&. mask == mask &&
              all (`elem` propertyFlags prop) reqPropFlags
            then Just ix
            else rest)
