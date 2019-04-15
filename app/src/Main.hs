@@ -65,6 +65,10 @@ import Graphics.Vulkan.DescriptorPool
   ( VkDescriptorPool, VkDescriptorPoolCreateInfo(..), VkDescriptorPoolSize(..)
   , vkCreateDescriptorPool
   )
+import Graphics.Vulkan.DescriptorSet
+  ( VkDescriptorSet, VkDescriptorSetAllocateInfo(..)
+  , vkAllocateDescriptorSets
+  )
 import Graphics.Vulkan.Ext
   ( VkInstanceExtension(..)
   , glfwGetRequiredInstanceExtensions
@@ -72,7 +76,8 @@ import Graphics.Vulkan.Ext
   , vkEnumerateDeviceExtensionProperties
   )
 import Graphics.Vulkan.DescriptorSetLayout
-  ( vkCreateDescriptorSetLayout, VkDescriptorSetLayoutCreateInfo(..)
+  ( VkDescriptorSetLayout
+  , vkCreateDescriptorSetLayout, VkDescriptorSetLayoutCreateInfo(..)
   , VkDescriptorSetLayoutBinding(..)
   )
 import Graphics.Vulkan.Ext.ColorSpace (VkColorSpaceKHR(..))
@@ -578,8 +583,8 @@ initImageViews device swapchain scConfig = do
     (\i -> vkCreateImageView device (imageViewCreateInfo i) Foreign.nullPtr)
     images
 
-initPipelineLayout :: MonadManaged m => VkDevice -> m VkPipelineLayout
-initPipelineLayout device = do
+initDescriptorSetLayout :: MonadManaged m => VkDevice -> m VkDescriptorSetLayout
+initDescriptorSetLayout dev = do
   let
     dsLayoutInfo =
       VkDescriptorSetLayoutCreateInfo
@@ -595,8 +600,11 @@ initPipelineLayout device = do
         ]
       }
 
-  dsLayout <- vkCreateDescriptorSetLayout device dsLayoutInfo Foreign.nullPtr
+  vkCreateDescriptorSetLayout dev dsLayoutInfo Foreign.nullPtr
 
+
+initPipelineLayout :: MonadManaged m => VkDevice -> VkDescriptorSetLayout -> m VkPipelineLayout
+initPipelineLayout device dsLayout = do
   let
     layoutInfo =
       VkPipelineLayoutCreateInfo
@@ -899,6 +907,22 @@ initDescriptorPool dev numImages = do
       }
   vkCreateDescriptorPool dev poolInfo Foreign.nullPtr
 
+initDescriptorSets ::
+  MonadManaged m =>
+  VkDevice ->
+  VkDescriptorPool ->
+  Word32 ->
+  VkDescriptorSetLayout ->
+  m [VkDescriptorSet]
+initDescriptorSets dev pool numImages layout = do
+  let
+    allocInfo =
+      VkDescriptorSetAllocateInfo
+      { descriptorPool = pool
+      , pSetLayouts = replicate (fromIntegral numImages) layout
+      }
+  vkAllocateDescriptorSets dev allocInfo
+
 initUniformBuffer ::
   MonadManaged m =>
   VkPhysicalDevice ->
@@ -990,17 +1014,22 @@ recreateSwapchain ::
   VkSurfaceKHR ->
   VkShaderModule ->
   VkShaderModule ->
+  VkDescriptorSetLayout ->
   VkPipelineLayout ->
   VkCommandPool ->
   VkBuffer ->
   SubresourceLoc Vertex ->
   SubresourceLoc Word16 ->
   m (VkSwapchainKHR, [VkCommandBuffer], SubresourceLoc Float)
-recreateSwapchain window physDev dev qfIxs surf vert frag pipeLayout cmdPool vBuf vLoc iLoc = do
+recreateSwapchain window physDev dev qfIxs surf vert frag dsLayout pipeLayout cmdPool vBuf vLoc iLoc = do
   (swapchain, scConfig) <- initSwapchain window physDev qfIxs surf dev
   imageViews <- initImageViews dev swapchain scConfig
+
+  let imageCount = fromIntegral $ length imageViews
   (uBuffer, uLoc) <- initUniformBuffer physDev dev (0 <$ imageViews)
-  descriptorPool <- initDescriptorPool dev (fromIntegral $ length imageViews)
+  descriptorPool <- initDescriptorPool dev imageCount
+  descriptorSets <- initDescriptorSets dev descriptorPool imageCount dsLayout
+
   renderPass <- initRenderPass dev scConfig
   pipeline <- initPipeline dev vert frag scConfig pipeLayout renderPass
   framebuffers <- initFramebuffers dev imageViews renderPass scConfig
@@ -1027,7 +1056,8 @@ main =
 
     vert <- shaderModuleFromFile "app/shaders/vert.spv" [] device Foreign.nullPtr
     frag <- shaderModuleFromFile "app/shaders/frag.spv" [] device Foreign.nullPtr
-    pipelineLayout <- initPipelineLayout device
+    dsLayout <- initDescriptorSetLayout device
+    pipelineLayout <- initPipelineLayout device dsLayout
     commandPool <- initCommandPool device (graphicsQfIx qfIxs)
     syncObjects <- initSyncObjects device
 
@@ -1043,6 +1073,7 @@ main =
          surface
          vert
          frag
+         dsLayout
          pipelineLayout
          commandPool
          vBuffer
