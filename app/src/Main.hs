@@ -17,7 +17,7 @@ import Control.Monad.Managed.Safe (MonadManaged, using, managed, runManaged)
 import Data.Bits ((.&.), shiftL)
 import Data.Foldable (fold, for_, traverse_)
 import Data.Int (Int32, Int64)
-import Data.List (findIndex)
+import Data.List (findIndex, zip3)
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
 import Data.Void (Void)
@@ -50,8 +50,9 @@ import Graphics.Vulkan.CommandBuffer
   )
 import Graphics.Vulkan.CommandPool (VkCommandPool, vkCreateCommandPool)
 import Graphics.Vulkan.CommandPoolCreateInfo (VkCommandPoolCreateInfo(..))
-import Graphics.Vulkan.Command.BindPipeline (vkCmdBindPipeline)
+import Graphics.Vulkan.Command.BindDescriptorSets (vkCmdBindDescriptorSets)
 import Graphics.Vulkan.Command.BindIndexBuffer (vkCmdBindIndexBuffer)
+import Graphics.Vulkan.Command.BindPipeline (vkCmdBindPipeline)
 import Graphics.Vulkan.Command.BindVertexBuffers (vkCmdBindVertexBuffers)
 import Graphics.Vulkan.Command.Draw (vkCmdDrawIndexed)
 import Graphics.Vulkan.Command.RenderPass (VkRenderPassBeginInfo(..), withCmdRenderPass)
@@ -67,7 +68,8 @@ import Graphics.Vulkan.DescriptorPool
   )
 import Graphics.Vulkan.DescriptorSet
   ( VkDescriptorSet, VkDescriptorSetAllocateInfo(..)
-  , vkAllocateDescriptorSets
+  , VkDescriptorBufferInfo(..), VkWriteDescriptorSet(..)
+  , vkAllocateDescriptorSets, vkUpdateDescriptorSets
   )
 import Graphics.Vulkan.Ext
   ( VkInstanceExtension(..)
@@ -300,7 +302,7 @@ mainLoop window mkSC device qs rotation syncObjects = do
                   , pImageIndices = [ix]
                   }
               vkQueuePresentKHR (presentQ qs) presentInfo
-              go swapchain cmdBuffers uLoc (rotation+0.00001)rest
+              go swapchain cmdBuffers uLoc (rotation+0.001)rest
 
 vulkanGLFW :: IO a -> IO a
 vulkanGLFW m = do
@@ -913,15 +915,38 @@ initDescriptorSets ::
   VkDescriptorPool ->
   Word32 ->
   VkDescriptorSetLayout ->
+  VkBuffer ->
   m [VkDescriptorSet]
-initDescriptorSets dev pool numImages layout = do
+initDescriptorSets dev pool numImages layout buf = do
   let
     allocInfo =
       VkDescriptorSetAllocateInfo
       { descriptorPool = pool
       , pSetLayouts = replicate (fromIntegral numImages) layout
       }
-  vkAllocateDescriptorSets dev allocInfo
+  dSets <- vkAllocateDescriptorSets dev allocInfo
+  for_ (zip [0..] dSets) $ \(ix, dSet) -> do
+    let
+      dBufferInfo =
+        VkDescriptorBufferInfo
+        { buffer = buf
+        , offset = fromIntegral $ ix * 2 * Foreign.sizeOf (undefined :: Float)
+        , range = fromIntegral $ Foreign.sizeOf (undefined :: Float)
+        }
+
+      wdSet =
+        VkWriteDescriptorSet
+        { dstSet = dSet
+        , dstBinding = 0
+        , dstArrayElement = 0
+        , descriptorCount = 1
+        , descriptorType = DescriptorType.UniformBuffer
+        , pImageInfo = Nothing
+        , pBufferInfo = Just [dBufferInfo]
+        , pTexelBufferView = Nothing
+        }
+    vkUpdateDescriptorSets dev [wdSet] []
+  pure dSets
 
 initUniformBuffer ::
   MonadManaged m =>
@@ -953,11 +978,13 @@ initCommandBuffers ::
   VkRenderPass ->
   SwapchainConfig ->
   VkPipeline ->
+  VkPipelineLayout ->
   VkBuffer ->
   SubresourceLoc Vertex ->
   SubresourceLoc Word16 ->
+  [VkDescriptorSet] ->
   m [VkCommandBuffer]
-initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline vBuf vLoc iLoc = do
+initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline layout vBuf vLoc iLoc dSets = do
   let
     commandBufferInfo =
       VkCommandBufferAllocateInfo
@@ -968,7 +995,7 @@ initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline 
 
   commandBuffers <- vkAllocateCommandBuffers device commandBufferInfo
 
-  for_ (zip commandBuffers framebuffers) $ \(cmdBuf, fbuf) -> do
+  for_ (zip3 commandBuffers framebuffers dSets) $ \(cmdBuf, fbuf, dSet) -> do
     let
       beginInfo =
         VkCommandBufferBeginInfo
@@ -993,6 +1020,7 @@ initCommandBuffers device commandPool framebuffers renderPass scConfig pipeline 
           vBuf
           (SubresourceLoc.offset iLoc)
           IndexUInt16
+        vkCmdBindDescriptorSets cmdBuf BindPoint.Graphics layout 0 [dSet] []
         vkCmdDrawIndexed cmdBuf (fromIntegral $ length indices) 1 0 0 0
 
   pure commandBuffers
@@ -1028,13 +1056,24 @@ recreateSwapchain window physDev dev qfIxs surf vert frag dsLayout pipeLayout cm
   let imageCount = fromIntegral $ length imageViews
   (uBuffer, uLoc) <- initUniformBuffer physDev dev (0 <$ imageViews)
   descriptorPool <- initDescriptorPool dev imageCount
-  descriptorSets <- initDescriptorSets dev descriptorPool imageCount dsLayout
+  descriptorSets <- initDescriptorSets dev descriptorPool imageCount dsLayout uBuffer
 
   renderPass <- initRenderPass dev scConfig
   pipeline <- initPipeline dev vert frag scConfig pipeLayout renderPass
   framebuffers <- initFramebuffers dev imageViews renderPass scConfig
   commandBuffers <-
-    initCommandBuffers dev cmdPool framebuffers renderPass scConfig pipeline vBuf vLoc iLoc
+    initCommandBuffers
+      dev
+      cmdPool
+      framebuffers
+      renderPass
+      scConfig
+      pipeline
+      pipeLayout
+      vBuf
+      vLoc
+      iLoc
+      descriptorSets
 
   pure (swapchain, commandBuffers, uLoc)
 

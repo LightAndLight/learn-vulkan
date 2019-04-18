@@ -27,8 +27,9 @@ library
     Graphics.Vulkan.CommandBuffer
     Graphics.Vulkan.CommandPool
     Graphics.Vulkan.CommandPoolCreateInfo
-    Graphics.Vulkan.Command.BindPipeline
+    Graphics.Vulkan.Command.BindDescriptorSets
     Graphics.Vulkan.Command.BindIndexBuffer
+    Graphics.Vulkan.Command.BindPipeline
     Graphics.Vulkan.Command.BindVertexBuffers
     Graphics.Vulkan.Command.Draw
     Graphics.Vulkan.Command.RenderPass
