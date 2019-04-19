@@ -7,13 +7,16 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed.Safe (MonadManaged)
 import Control.Monad.State (evalStateT, modify, get)
 import Data.Bits ((.&.), shiftL)
+import Data.Foldable (for_)
 import Data.Word (Word32)
 import Data.Void (Void)
-import Foreign (Ptr, Storable, sizeOf, pokeArray, nullPtr, plusPtr)
+import Foreign (Ptr, Storable, sizeOf, pokeArray, nullPtr, plusPtr, pokeByteOff, castPtr)
 
 import Data.Some (Some(..))
 import Graphics.Vulkan.Buffer
-  ( VkBuffer, VkBufferCreateInfo(..), VkBufferCreateFlag, VkBufferUsageFlag
+  ( VkBuffer, VkBufferCreateInfo(..)
+  , VkBufferUsageFlag(..)
+  , VkBufferCreateFlag
   , vkCreateBuffer
   , vkGetBufferMemoryRequirements
   , vkBindBufferMemory
@@ -24,9 +27,12 @@ import Graphics.Vulkan.Device
   , vkMapMemory
   )
 import Graphics.Vulkan.PhysicalDevice
-  ( VkDeviceSize, VkPhysicalDevice, VkMemoryPropertyFlag
+  ( VkDeviceSize, VkPhysicalDevice
+  , VkPhysicalDeviceProperties(..), VkPhysicalDeviceLimits(..)
+  , VkMemoryPropertyFlag(..)
   , VkPhysicalDeviceMemoryProperties(..)
   , VkMemoryType(..)
+  , vkGetPhysicalDeviceProperties
   , vkGetPhysicalDeviceMemoryProperties
   )
 import Graphics.Vulkan.SharingMode (VkSharingMode(..))
@@ -151,3 +157,67 @@ allocateSubresources physDev dev info = do
 
           SubresourceLoc ptr' off sz <$ modify (+sz)
       pure (buffer, srs)
+
+perImageUniformBuffer ::
+  forall m a.
+  (MonadManaged m, Storable a) =>
+  VkPhysicalDevice ->
+  VkDevice ->
+  Int ->
+  a ->
+  m (VkBuffer, SubresourceLoc a)
+perImageUniformBuffer physDev dev count val = do
+  props <- vkGetPhysicalDeviceProperties physDev
+  let
+    align = fromIntegral . minUniformBufferOffsetAlignment $ limits props
+    sz = sizeOf (undefined :: a) - 1
+    (q, r) = sz `quotRem` align
+    elemSize = sz + align - r
+    bufferSize = elemSize * count
+    bufferInfo =
+      VkBufferCreateInfo
+      { flags = []
+      , size = fromIntegral bufferSize
+      , usage = [UniformBuffer]
+      , sharingMode = Exclusive
+      , pQueueFamilyIndices = []
+      }
+  buffer <- vkCreateBuffer dev bufferInfo nullPtr
+
+  memRequirements <- vkGetBufferMemoryRequirements dev buffer
+  let
+    reqTypeBits = MemoryRequirements.memoryTypeBits memRequirements
+    reqPropFlags = [HostVisible, HostCoherent]
+
+  memProperties <- vkGetPhysicalDeviceMemoryProperties physDev
+
+  let
+    m_ix =
+      foldr
+        (\(ix, prop) rest ->
+           let mask = (1 `shiftL` ix) in
+           if
+             reqTypeBits .&. mask == mask &&
+             all (`elem` propertyFlags prop) reqPropFlags
+           then Just ix
+           else rest)
+        Nothing
+        (zip [0..] $ memoryTypes memProperties)
+
+  case m_ix of
+    Nothing -> error "No suitable memory type"
+    Just ix -> do
+      let
+        allocInfo =
+          VkMemoryAllocateInfo
+          { allocationSize = MemoryRequirements.size memRequirements
+          , memoryTypeIndex = fromIntegral ix
+          }
+      mem <- vkAllocateMemory dev allocInfo nullPtr
+      vkBindBufferMemory dev buffer mem 0
+      ptr :: Ptr Void <- vkMapMemory dev mem 0 Nothing []
+
+      liftIO . for_ [0..count-1] $ \n ->
+        pokeByteOff ptr (n * elemSize) val
+
+      pure (buffer, SubresourceLoc (castPtr ptr) 0 $ fromIntegral bufferSize)
